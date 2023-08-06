@@ -1,0 +1,19 @@
+name: Sample workflow run
+
+on:
+  push
+
+
+jobs:
+  example:
+    name: Example Job
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run one-lin script
+        run: echo Hello from github action
+
+      - name: Run codeowners-plus-plus
+        uses: ./

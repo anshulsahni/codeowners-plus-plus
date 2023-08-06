@@ -1,0 +1,5 @@
+name: 'Codeowners Plus Plus'
+description: 'Extends the functionality of CODEOWNERS'
+runs:
+  using: 'node16'
+  main: 'dist/index.js'
