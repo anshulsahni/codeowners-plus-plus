@@ -1,7 +1,7 @@
 import { getInput, error as logError, setFailed } from "@actions/core";
 import { context, getOctokit } from "@actions/github";
 import { Context } from "@actions/github/lib/context";
-import ReviewRules from "./ReviewRules";
+import CodeOwnersEval from "./CodeOwnersEval";
 
 type Octokit = ReturnType<typeof getOctokit>;
 
@@ -18,7 +18,8 @@ async function run(): Promise<void> {
 
   const approvers = await getPRReviews(octokit, prNumber);
   const rules = interpretConfig(configFileContents);
-  const affectedPaths = getAffectedpaths(Object.keys(rules), changedFileNames);
+  const codeOwnersEval = new CodeOwnersEval(approvers, changedFileNames, rules);
+  // const affectedPaths = getAffectedpaths(Object.keys(rules), changedFileNames);
 
   // } catch (error) {
   // logError(error as string);
@@ -119,6 +120,5 @@ function changedPathsContain(
   return changedFilePaths.some((path) => path.startsWith(pathInConfig));
 }
 
-function getReviewRules(ownerRuleString): ReviewRules {}
 
 run();
