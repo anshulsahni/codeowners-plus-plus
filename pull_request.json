@@ -1,0 +1,14 @@
+{
+  "pull_request": {
+    "number": 1,
+    "head": {
+      "ref": "sample-head-ref"
+    },
+    "base": {
+      "ref": "sample-base-ref"
+    }
+  },
+  "repository": {
+    "default_branch": "main"
+  }
+}
