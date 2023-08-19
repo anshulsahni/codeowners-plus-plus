@@ -1,6 +1,12 @@
-import { getInput, error as logError, setFailed } from "@actions/core";
+import {
+  getInput,
+  error as logError,
+  setFailed,
+  info as logInfo,
+} from "@actions/core";
 import { context, getOctokit } from "@actions/github";
 import { Context } from "@actions/github/lib/context";
+import { config } from "process";
 import { CodeOwnersConfig } from "./CodeOwnersEval";
 
 type Octokit = ReturnType<typeof getOctokit>;
@@ -8,15 +14,25 @@ type Octokit = ReturnType<typeof getOctokit>;
 async function run(): Promise<void> {
   try {
     const defaultBranch = getDefaultBranch(context);
+    logInfo(`Fetching default branch ${defaultBranch}`);
+
     const authToken = getInput("token");
+    logInfo(`Fetching auth token`);
+
     const octokit = getOctokit(authToken);
 
     const configFileContents = await getConfigFile(octokit, defaultBranch);
+    logInfo(`Fetching config file contents ${configFileContents}`);
 
     const prNumber = getPrNumber(context);
+    logInfo(`got PR number of current pull request ${prNumber}`);
+
     const changedFileNames = await getChangedFileNames(octokit, prNumber);
+    logInfo(`fetched the name of changed files ${changedFileNames}`);
 
     const approvers = await getPRReviews(octokit, prNumber);
+    logInfo(`fetched the list of PR approvers ${approvers}`);
+
     const rules = interpretConfig(configFileContents);
 
     const codeownersConfig = new CodeOwnersConfig(
@@ -99,7 +115,5 @@ async function getChangedFileNames(
   });
   return response.data.map((files: { filename: string }) => files.filename);
 }
-
-
 
 run();
