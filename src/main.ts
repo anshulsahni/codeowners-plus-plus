@@ -1,30 +1,39 @@
 import { getInput, error as logError, setFailed } from "@actions/core";
 import { context, getOctokit } from "@actions/github";
 import { Context } from "@actions/github/lib/context";
-import CodeOwnersEval from "./CodeOwnersEval";
+import { CodeOwnersConfig } from "./CodeOwnersEval";
 
 type Octokit = ReturnType<typeof getOctokit>;
 
 async function run(): Promise<void> {
-  // try {
-  const defaultBranch = getDefaultBranch(context);
-  const authToken = getInput("token");
-  const octokit = getOctokit(authToken);
+  try {
+    const defaultBranch = getDefaultBranch(context);
+    const authToken = getInput("token");
+    const octokit = getOctokit(authToken);
 
-  const configFileContents = await getConfigFile(octokit, defaultBranch);
+    const configFileContents = await getConfigFile(octokit, defaultBranch);
 
-  const prNumber = getPrNumber(context);
-  const changedFileNames = await getChangedFileNames(octokit, prNumber);
+    const prNumber = getPrNumber(context);
+    const changedFileNames = await getChangedFileNames(octokit, prNumber);
 
-  const approvers = await getPRReviews(octokit, prNumber);
-  const rules = interpretConfig(configFileContents);
-  const codeOwnersEval = new CodeOwnersEval(approvers, changedFileNames, rules);
-  // const affectedPaths = getAffectedpaths(Object.keys(rules), changedFileNames);
+    const approvers = await getPRReviews(octokit, prNumber);
+    const rules = interpretConfig(configFileContents);
 
-  // } catch (error) {
-  // logError(error as string);
-  // setFailed(error as string);
-  // }
+    const codeownersConfig = new CodeOwnersConfig(
+      rules,
+      approvers,
+      changedFileNames
+    );
+
+    if (!codeownersConfig.isSatisfied()) {
+      setFailed(
+        "action codeowners-plus-plus failed because approvals from codeowners are not enought"
+      );
+    }
+  } catch (error) {
+    logError(error as string);
+    setFailed(error as string);
+  }
 }
 
 function isValidAction(): boolean {
@@ -70,17 +79,13 @@ function getPrNumber(context: Context): number {
 }
 
 function interpretConfig(contents: string): Record<string, string> {
-  return contents
-    .split("\n")
-    .map((line) => line.split(" "))
-    .filter(([filePaths]) => Boolean(filePaths))
-    .reduce<Record<string, string>>(
-      (r, [filePaths, ownerRuleString]) => ({
-        ...r,
-        [filePaths]: ownerRuleString,
-      }),
-      {}
-    );
+  return contents.split("\n").reduce((rules, line) => {
+    const firstSpaceIndex = line.indexOf(" ");
+    return {
+      ...rules,
+      [line.substring(0, firstSpaceIndex)]: line.substring(firstSpaceIndex + 1),
+    };
+  }, {});
 }
 
 async function getChangedFileNames(
@@ -95,30 +100,6 @@ async function getChangedFileNames(
   return response.data.map((files: { filename: string }) => files.filename);
 }
 
-function getAffectedpaths(
-  pathsInConfig: Array<string>,
-  changedFilePaths: Array<string>
-): Array<string> {
-  const affectedPaths: Array<string> = [];
-  if (pathsInConfig.includes("*") && changedFilePaths.length > 0) {
-    affectedPaths.push("*");
-  }
-
-  pathsInConfig.forEach((pathInConfig) => {
-    if (changedPathsContain(pathInConfig, changedFilePaths)) {
-      affectedPaths.push(pathInConfig);
-    }
-  });
-
-  return affectedPaths;
-}
-
-function changedPathsContain(
-  pathInConfig: string,
-  changedFilePaths: Array<string>
-): Boolean {
-  return changedFilePaths.some((path) => path.startsWith(pathInConfig));
-}
 
 
 run();

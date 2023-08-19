@@ -1,46 +1,123 @@
 import { omit, keys } from "lodash";
 import { minimatch } from "minimatch";
+import path from "path";
 
-export default class CodeOwnersEval {
+export class CodeOwnersConfig {
+  config: Record<string, CodeOwnerRuleStatement>;
   approvers: Array<string>;
-  changedPaths: Array<string>;
-  codeOwners: Record<string, string>;
 
   constructor(
+    config: Record<string, string>,
     approvers: Array<string>,
-    changedPaths: Array<string>,
-    codeOwners: Record<string, string>
+    changedPaths: Array<string>
   ) {
     this.approvers = approvers;
-    this.changedPaths = changedPaths;
-    this.codeOwners = codeOwners;
-
-    console.log(this.getAffectedRules());
+    this.config = this.getConfigForAffectedRules(config, changedPaths);
   }
 
-  eval(): boolean {
-    return true;
+  isSatisfied(): boolean {
+    return Object.keys(this.config).every((pathPattern) => {
+      this.config[pathPattern].evaluate();
+    });
   }
 
-  private getAffectedRules(): Record<string, string> {
-    let affectedRules: Record<string, string> = {};
-    if (this.codeOwners["*"] && this.changedPaths.length > 0) {
-      affectedRules["*"] = this.codeOwners["*"];
+  private getConfigForAffectedRules(
+    config: Record<string, string>,
+    changedPaths: Array<string>
+  ): Record<string, CodeOwnerRuleStatement> {
+    let affectedRules: Record<string, CodeOwnerRuleStatement> = {};
+    if (config["*"] && changedPaths.length > 0) {
+      affectedRules["*"] = new CodeOwnerRuleStatement(
+        config["*"],
+        this.approvers
+      );
     }
 
-    const ownerPatterns = keys(omit(this.codeOwners, "*"));
-    this.changedPaths.forEach((filePath) => {
+    const patternInRules = keys(omit(config, "*"));
+    changedPaths.forEach((filePath) => {
       let currentAffectedRule: string | undefined = undefined;
-      ownerPatterns.forEach((pattern) => {
+      patternInRules.forEach((pattern) => {
         if (minimatch(filePath, pattern)) currentAffectedRule = pattern;
       });
 
       if (currentAffectedRule) {
-        affectedRules[currentAffectedRule] =
-          this.codeOwners[currentAffectedRule];
+        affectedRules[currentAffectedRule] = new CodeOwnerRuleStatement(
+          config[currentAffectedRule],
+          this.approvers
+        );
       }
     });
 
     return affectedRules;
+  }
+}
+
+class CodeOwner {
+  userId: string;
+  constructor(userId: string) {
+    this.userId = userId;
+  }
+}
+
+type Statement = Array<
+  CodeOwner | ((result: boolean, codeOwner: CodeOwner) => boolean)
+>;
+
+class CodeOwnerRuleStatement {
+  statement: Statement;
+  approvers: Array<string>;
+  constructor(statementString: string, approvers: Array<string>) {
+    this.approvers = approvers;
+    this.statement = this.statementStringToObj(statementString);
+  }
+
+  evaluate(): boolean {
+    let result: boolean = false;
+
+    for (let i = 0; i < this.statement.length; i++) {
+      const statementPiece = this.statement[i];
+      if (statementPiece instanceof CodeOwner) {
+        result = this.isCodeOwnerApprover(statementPiece);
+      } else {
+        result = statementPiece.call(
+          this,
+          result,
+          this.statement[++i] as CodeOwner
+        );
+      }
+    }
+
+    return result;
+  }
+
+  isCodeOwnerApprover(codeOwner: CodeOwner): boolean {
+    return this.approvers.includes(codeOwner.userId);
+  }
+
+  private and(result: boolean, codeOwner: CodeOwner): boolean {
+    return result && this.isCodeOwnerApprover(codeOwner);
+  }
+
+  private or(result: boolean, codeOwner: CodeOwner): boolean {
+    return result || this.isCodeOwnerApprover(codeOwner);
+  }
+
+  private statementStringToObj(statementString: string): Statement {
+    const statement: Statement = [];
+    statementString.split(" ").forEach((statementPiece) => {
+      if (statementPiece.startsWith("@")) {
+        statement.push(new CodeOwner(statementPiece.substring(1)));
+      } else if (statementPiece === "&&") {
+        statement.push(this.and);
+      } else if (statementPiece === "||") {
+        statement.push(this.or);
+      } else {
+        throw new Error(
+          `Invalid symbol ${statementPiece} in owner rule statement`
+        );
+      }
+    });
+
+    return statement;
   }
 }

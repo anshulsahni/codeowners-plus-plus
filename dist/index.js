@@ -7,39 +7,90 @@
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CodeOwnersConfig = void 0;
 const lodash_1 = __nccwpck_require__(250);
 const minimatch_1 = __nccwpck_require__(1953);
-class CodeOwnersEval {
-    constructor(approvers, changedPaths, codeOwners) {
+class CodeOwnersConfig {
+    constructor(config, approvers, changedPaths) {
         this.approvers = approvers;
-        this.changedPaths = changedPaths;
-        this.codeOwners = codeOwners;
-        console.log(this.getAffectedRules());
+        this.config = this.getConfigForAffectedRules(config, changedPaths);
     }
-    eval() {
-        return true;
+    isSatisfied() {
+        return Object.keys(this.config).every((pathPattern) => {
+            this.config[pathPattern].evaluate();
+        });
     }
-    getAffectedRules() {
+    getConfigForAffectedRules(config, changedPaths) {
         let affectedRules = {};
-        if (this.codeOwners["*"] && this.changedPaths.length > 0) {
-            affectedRules["*"] = this.codeOwners["*"];
+        if (config["*"] && changedPaths.length > 0) {
+            affectedRules["*"] = new CodeOwnerRuleStatement(config["*"], this.approvers);
         }
-        const ownerPatterns = (0, lodash_1.keys)((0, lodash_1.omit)(this.codeOwners, "*"));
-        this.changedPaths.forEach((filePath) => {
+        const patternInRules = (0, lodash_1.keys)((0, lodash_1.omit)(config, "*"));
+        changedPaths.forEach((filePath) => {
             let currentAffectedRule = undefined;
-            ownerPatterns.forEach((pattern) => {
+            patternInRules.forEach((pattern) => {
                 if ((0, minimatch_1.minimatch)(filePath, pattern))
                     currentAffectedRule = pattern;
             });
             if (currentAffectedRule) {
-                affectedRules[currentAffectedRule] =
-                    this.codeOwners[currentAffectedRule];
+                affectedRules[currentAffectedRule] = new CodeOwnerRuleStatement(config[currentAffectedRule], this.approvers);
             }
         });
         return affectedRules;
     }
 }
-exports["default"] = CodeOwnersEval;
+exports.CodeOwnersConfig = CodeOwnersConfig;
+class CodeOwner {
+    constructor(userId) {
+        this.userId = userId;
+    }
+}
+class CodeOwnerRuleStatement {
+    constructor(statementString, approvers) {
+        this.approvers = approvers;
+        this.statement = this.statementStringToObj(statementString);
+    }
+    evaluate() {
+        let result = false;
+        for (let i = 0; i < this.statement.length; i++) {
+            const statementPiece = this.statement[i];
+            if (statementPiece instanceof CodeOwner) {
+                result = this.isCodeOwnerApprover(statementPiece);
+            }
+            else {
+                result = statementPiece.call(this, result, this.statement[++i]);
+            }
+        }
+        return result;
+    }
+    isCodeOwnerApprover(codeOwner) {
+        return this.approvers.includes(codeOwner.userId);
+    }
+    and(result, codeOwner) {
+        return result && this.isCodeOwnerApprover(codeOwner);
+    }
+    or(result, codeOwner) {
+        return result || this.isCodeOwnerApprover(codeOwner);
+    }
+    statementStringToObj(statementString) {
+        const statement = [];
+        statementString.split(" ").forEach((statementPiece) => {
+            if (statementPiece.startsWith("@")) {
+                statement.push(new CodeOwner(statementPiece.substring(1)));
+            }
+            else if (statementPiece === "&&") {
+                statement.push(this.and);
+            }
+            else if (statementPiece === "||") {
+                statement.push(this.or);
+            }
+            else {
+                throw new Error(`Invalid symbol ${statementPiece} in owner rule statement`);
+            }
+        });
+        return statement;
+    }
+}
 
 
 /***/ }),
@@ -58,30 +109,30 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core_1 = __nccwpck_require__(2186);
 const github_1 = __nccwpck_require__(5438);
-const CodeOwnersEval_1 = __importDefault(__nccwpck_require__(2106));
+const CodeOwnersEval_1 = __nccwpck_require__(2106);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
-        // try {
-        const defaultBranch = getDefaultBranch(github_1.context);
-        const authToken = (0, core_1.getInput)("token");
-        const octokit = (0, github_1.getOctokit)(authToken);
-        const configFileContents = yield getConfigFile(octokit, defaultBranch);
-        const prNumber = getPrNumber(github_1.context);
-        const changedFileNames = yield getChangedFileNames(octokit, prNumber);
-        const approvers = yield getPRReviews(octokit, prNumber);
-        const rules = interpretConfig(configFileContents);
-        const codeOwnersEval = new CodeOwnersEval_1.default(approvers, changedFileNames, rules);
-        // const affectedPaths = getAffectedpaths(Object.keys(rules), changedFileNames);
-        // } catch (error) {
-        // logError(error as string);
-        // setFailed(error as string);
-        // }
+        try {
+            const defaultBranch = getDefaultBranch(github_1.context);
+            const authToken = (0, core_1.getInput)("token");
+            const octokit = (0, github_1.getOctokit)(authToken);
+            const configFileContents = yield getConfigFile(octokit, defaultBranch);
+            const prNumber = getPrNumber(github_1.context);
+            const changedFileNames = yield getChangedFileNames(octokit, prNumber);
+            const approvers = yield getPRReviews(octokit, prNumber);
+            const rules = interpretConfig(configFileContents);
+            const codeownersConfig = new CodeOwnersEval_1.CodeOwnersConfig(rules, approvers, changedFileNames);
+            if (!codeownersConfig.isSatisfied()) {
+                (0, core_1.setFailed)("action codeowners-plus-plus failed because approvals from codeowners are not enought");
+            }
+        }
+        catch (error) {
+            (0, core_1.error)(error);
+            (0, core_1.setFailed)(error);
+        }
     });
 }
 function isValidAction() {
@@ -122,11 +173,10 @@ function getPrNumber(context) {
     throw "action doesn't have any PR associated with it";
 }
 function interpretConfig(contents) {
-    return contents
-        .split("\n")
-        .map((line) => line.split(" "))
-        .filter(([filePaths]) => Boolean(filePaths))
-        .reduce((r, [filePaths, ownerRuleString]) => (Object.assign(Object.assign({}, r), { [filePaths]: ownerRuleString })), {});
+    return contents.split("\n").reduce((rules, line) => {
+        const firstSpaceIndex = line.indexOf(" ");
+        return Object.assign(Object.assign({}, rules), { [line.substring(0, firstSpaceIndex)]: line.substring(firstSpaceIndex + 1) });
+    }, {});
 }
 function getChangedFileNames(octokit, prNumber) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -137,21 +187,6 @@ function getChangedFileNames(octokit, prNumber) {
         });
         return response.data.map((files) => files.filename);
     });
-}
-function getAffectedpaths(pathsInConfig, changedFilePaths) {
-    const affectedPaths = [];
-    if (pathsInConfig.includes("*") && changedFilePaths.length > 0) {
-        affectedPaths.push("*");
-    }
-    pathsInConfig.forEach((pathInConfig) => {
-        if (changedPathsContain(pathInConfig, changedFilePaths)) {
-            affectedPaths.push(pathInConfig);
-        }
-    });
-    return affectedPaths;
-}
-function changedPathsContain(pathInConfig, changedFilePaths) {
-    return changedFilePaths.some((path) => path.startsWith(pathInConfig));
 }
 run();
 
