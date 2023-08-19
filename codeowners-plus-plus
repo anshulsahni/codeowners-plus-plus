@@ -1,1 +1,5 @@
-this is sample file, please don't take it seriously
+* @anshulsahni
+*.txt @contributor2
+sample/** @contributor1
+sample/one-level-inside/ @contributor1 && @contributor2
+.gitignore @contributor1 && @contributor2
