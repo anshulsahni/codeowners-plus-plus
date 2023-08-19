@@ -27,11 +27,11 @@ async function run(): Promise<void> {
     const prNumber = getPrNumber(context);
     logInfo(`got PR number of current pull request ${prNumber}`);
 
-    const changedFileNames = await getChangedFileNames(octokit, prNumber);
-    logInfo(`fetched the name of changed files ${changedFileNames}`);
-
     const approvers = await getPRReviews(octokit, prNumber);
     logInfo(`fetched the list of PR approvers ${approvers}`);
+
+    const changedFileNames = await getChangedFileNames(octokit, prNumber);
+    logInfo(`fetched the name of changed files ${changedFileNames}`);
 
     const rules = interpretConfig(configFileContents);
 
