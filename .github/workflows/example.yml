@@ -1,0 +1,22 @@
+name: Sample workflow run
+
+on: pull_request
+
+jobs:
+  example:
+    name: Example Job
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run one-line script
+        run: echo Starting the codeowners-plus-plus example run
+
+      - name: Run codeowners-plus-plus
+        uses: ./
+        with:
+          token: ${{secrets.GITHUB_TOKEN}}

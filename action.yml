@@ -1,0 +1,10 @@
+name: 'Codeowners Plus Plus'
+description: 'Exten ds the functionality of CODEOWNERS'
+inputs:
+  token:
+    description: Token required for fetching the config file
+    required: true
+    # default: ${{ github.token }}
+runs:
+  using: 'node16'
+  main: 'dist/index.js'
