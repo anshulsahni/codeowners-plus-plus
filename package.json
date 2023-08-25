@@ -6,6 +6,7 @@
   "scripts": {
     "build:bundle": "ncc build -m",
     "build": "npm run build:tsc && npm run build:bundle",
+    "act-cli": "/bin/act pull_request -e pull_request.json -s GITHUB_TOKEN=\"$(gh auth token)\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
