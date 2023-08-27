@@ -2,8 +2,11 @@
   "name": "codeowners-plus-plus",
   "version": "0.0.0-development",
   "description": "Extending the basic functionality of codeowner feature of github",
-  "main": "lib/main.js",
+  "main": "./src/main.ts",
   "scripts": {
+    "build:bundle": "ncc build -m",
+    "dev-trigger": "/bin/act pull_request -e pull_request.json -s GITHUB_TOKEN=\"$(gh auth token)\"",
+    "dev": "ncc build -w --out dist",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -20,14 +23,14 @@
   "devDependencies": {
     "@types/lodash": "4.14.197",
     "@types/node": "20.3.3",
-    "@vercel/ncc": "0.36.1",
-    "typescript": "5.1.6"
+    "@vercel/ncc": "0.36.1"
   },
   "dependencies": {
     "@actions/core": "1.10.0",
     "@actions/github": "5.1.1",
     "@actions/glob": "0.4.0",
     "lodash": "4.17.21",
-    "minimatch": "^9.0.3"
+    "minimatch": "9.0.3",
+    "typescript": "5.1.6"
   }
 }
