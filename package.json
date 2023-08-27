@@ -1,6 +1,6 @@
 {
   "name": "codeowners-plus-plus",
-  "version": "0.0.0-development",
+  "version": "0.0.1-development",
   "description": "Extending the basic functionality of codeowner feature of github",
   "main": "./src/main.ts",
   "scripts": {
