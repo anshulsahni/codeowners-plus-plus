@@ -1,0 +1,17 @@
+name: Validate the code for github action
+
+on: push
+
+jobs:
+  validate:
+    name: Validate Code
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: "Install Deps"
+        run: npm ci
+
+      - name: "Run Tests"
+        run: npm test

@@ -3,12 +3,18 @@ import { context, getOctokit } from "@actions/github";
 
 export type Octokit = ReturnType<typeof getOctokit>;
 
-export function interpretConfig(contents: string): Record<string, string> {
+export function interpretConfig(contents: string = ""): Record<string, string> {
   return contents.split("\n").reduce((rules, line) => {
-    const firstSpaceIndex = line.trim().indexOf(" ");
+    const trimmedLine = line.trim();
+    const firstSpaceIndex = trimmedLine.indexOf(" ");
     return {
       ...rules,
-      [line.substring(0, firstSpaceIndex)]: line.substring(firstSpaceIndex + 1),
+      // if trimmed line is not empty, only then assign
+      ...(trimmedLine && {
+        [trimmedLine.substring(0, firstSpaceIndex)]: trimmedLine.substring(
+          firstSpaceIndex + 1
+        ),
+      }),
     };
   }, {});
 }
@@ -22,6 +28,7 @@ export async function getChangedFileNames(
     repo: context.repo.repo,
     pull_number: prNumber,
   });
+
   return response.data.map((files: { filename: string }) => files.filename);
 }
 
