@@ -1,5 +1,9 @@
 import CodeOwner from "./CodeOwner";
 
+export type Statement = Array<
+  CodeOwner | ((result: boolean, codeOwner: CodeOwner) => boolean)
+>;
+
 export default class CodeOwnerRuleStatement {
   statement: Statement;
   approvers: Array<string>;
@@ -58,7 +62,3 @@ export default class CodeOwnerRuleStatement {
     return statement;
   }
 }
-
-export type Statement = Array<
-  CodeOwner | ((result: boolean, codeOwner: CodeOwner) => boolean)
->;
