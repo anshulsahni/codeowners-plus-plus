@@ -32,7 +32,35 @@ describe("CodeOwnerRuleStatement", () => {
     it("should parse statement identifying the codeowners", () => {});
   });
 
-  describe("evaluate()", () => {});
+  describe("evaluate()", () => {
+    test.each([
+      { statement: "@someone1", approvers: ["someone1"] },
+      { statement: "@someone1 || @someone2", approvers: ["someone1"] },
+      {
+        statement: "@someone1 && @someone2",
+        approvers: ["someone1", "someone2"],
+      },
+      {
+        statement: "@someone1 || @someone2 || @someone3",
+        approvers: ["someone2"],
+      },
+      {
+        statement: "@someone1 && @someone2 && @someone3",
+        approvers: ["someone3", "someone2", "someone1"],
+      },
+      {
+        statement: "@someone1 || @someone2 && @someone3",
+        approvers: ["someone3", "someone1"],
+      },
+    ])(
+      "it should return true with statementString: $statement & approvers: $approvers",
+      ({ statement, approvers }) => {
+        expect(
+          new CodeOwnerRuleStatement(statement, approvers).evaluate()
+        ).toBe(true);
+      }
+    );
+  });
 
   describe("isCodeOwnerApprover()", () => {
     it("should return true if codOwner's user id is one of the approvers", () => {
