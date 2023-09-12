@@ -72,7 +72,17 @@ describe("CodeOwnersConfig", () => {
           CodeOwnerRuleStatement
         );
       });
+
+      it("rules when with * and any file is changed", () => {
+        const coc = new CodeOwnersConfig(
+          { "*": "@someone1" },
+          [],
+          ["something.txt"]
+        );
+        expect(coc.config).toHaveProperty(["*"]);
+        expect(coc.config["*"]).toBeInstanceOf(CodeOwnerRuleStatement);
+      });
     });
   });
-  describe("isSatisfied()", () => {});
+  // TODO: Write tests for isSatisfied()
 });
