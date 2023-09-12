@@ -50,7 +50,6 @@ describe("CodeOwnersConfig", () => {
           [],
           ["something.txt", "somemore.txt"]
         );
-        console.log(coc.config);
         expect(coc.config).toHaveProperty(["something.txt"]);
         expect(coc.config["something.txt"]).toBeInstanceOf(
           CodeOwnerRuleStatement

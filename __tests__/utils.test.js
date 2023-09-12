@@ -28,7 +28,7 @@ describe("utils.ts", () => {
     it("should raise exception if payload is not present in context", () => {
       const context = {};
       expect(() => getDefaultBranch(context)).toThrowError(
-        "Cannot read property 'repository' of undefined"
+        "Cannot read properties of undefined (reading 'repository')"
       );
     });
 
