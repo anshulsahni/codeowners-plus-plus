@@ -27379,7 +27379,7 @@ exports.getPrNumber = getPrNumber;
 function isTeamOrIndividual(octokit, slug) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            console.log({ context: JSON.stringify(github_1.context.payload) });
+            console.log({ context: JSON.stringify(github_1.context.payload.pull_request) });
             const user = yield octokit.rest.users.getByUsername({
                 username: slug,
             });
