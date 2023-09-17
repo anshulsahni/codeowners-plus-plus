@@ -13,6 +13,7 @@ import {
   getPrNumber,
   getPRReviews,
   interpretConfig,
+  isTeamOrIndividual,
 } from "./utils";
 
 async function run(): Promise<void> {
@@ -23,6 +24,7 @@ async function run(): Promise<void> {
     const authToken = getInput("token");
 
     const octokit = getOctokit(authToken);
+    await isTeamOrIndividual(octokit, "acquisition-fe");
 
     const configFileContents = await getConfigFile(octokit, defaultBranch);
     logInfo(`fetched config file contents `);

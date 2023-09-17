@@ -1,5 +1,6 @@
 import { Context } from "@actions/github/lib/context";
 import { context, getOctokit } from "@actions/github";
+import { Individual, Team } from "./lib/CodeOwner";
 
 export type Octokit = ReturnType<typeof getOctokit>;
 
@@ -69,5 +70,41 @@ export function getPrNumber(context: Context): number {
   throw "action doesn't have any PR associated with it";
 }
 
+export async function isTeamOrIndividual(
+  octokit: Octokit,
+  slug: string
+): Promise<Individual | Team> {
+  try {
+    const user = await octokit.rest.users.getByUsername({
+      username: slug,
+    });
+
+    return new Individual(slug);
+  } catch (error: any) {
+    if (error.status === 404) {
+      try {
+        const team = await octokit.rest.teams.getByName({
+          org: "razorpay",
+          team_slug: slug,
+        });
+        console.log({ context: context.payload.pull_request });
+        // const members = await octokit.rest.teams.listMembersInOrg({
+        //   org: context.payload.organization,
+        // });
+        return new Team(slug, ["anshulsahni"]);
+      } catch (error: any) {
+        throw new Error(
+          `Slug - ${slug} is neither associated with a user or a org's team`
+        );
+      }
+    } else {
+      throw new Error(
+        `Slug - ${slug} is neither associated with a user or a org's team`
+      );
+    }
+  }
+}
+
 export const getDefaultBranch = (context: Context): string =>
   context.payload.repository?.default_branch;
+
