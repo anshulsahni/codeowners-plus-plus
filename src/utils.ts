@@ -75,6 +75,7 @@ export async function isTeamOrIndividual(
   slug: string
 ): Promise<Individual | Team> {
   try {
+    console.log({ context: context.payload.pull_request });
     const user = await octokit.rest.users.getByUsername({
       username: slug,
     });
@@ -87,7 +88,6 @@ export async function isTeamOrIndividual(
           org: "razorpay",
           team_slug: slug,
         });
-        console.log({ context: context.payload.pull_request });
         // const members = await octokit.rest.teams.listMembersInOrg({
         //   org: context.payload.organization,
         // });

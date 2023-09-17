@@ -27379,6 +27379,7 @@ exports.getPrNumber = getPrNumber;
 function isTeamOrIndividual(octokit, slug) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
+            console.log({ context: github_1.context.payload.pull_request });
             const user = yield octokit.rest.users.getByUsername({
                 username: slug,
             });
@@ -27391,7 +27392,6 @@ function isTeamOrIndividual(octokit, slug) {
                         org: "razorpay",
                         team_slug: slug,
                     });
-                    console.log({ context: github_1.context.payload.pull_request });
                     // const members = await octokit.rest.teams.listMembersInOrg({
                     //   org: context.payload.organization,
                     // });
