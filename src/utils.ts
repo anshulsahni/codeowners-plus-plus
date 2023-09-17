@@ -75,7 +75,7 @@ export async function isTeamOrIndividual(
   slug: string
 ): Promise<Individual | Team> {
   try {
-    console.log({ context: context.payload.pull_request });
+    console.log({ context: JSON.stringify(context.payload) });
     const user = await octokit.rest.users.getByUsername({
       username: slug,
     });
