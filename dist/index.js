@@ -31961,9 +31961,11 @@ function run() {
             (0, core_1.info)("interpretation of config completed");
             const codeownersConfig = new CodeOwnersConfig_1.default(rules, approvers, changedFileNames, octokit);
             if (!(yield codeownersConfig.isSatisfied())) {
+                (0, core_1.error)("action codeowners-plus-plus failed because approvals from codeowners are not enough");
                 (0, core_1.setFailed)("action codeowners-plus-plus failed because approvals from codeowners are not enough");
             }
             else {
+                (0, core_1.info)("Pull Request has all required approvals according to codeowners-plus-plus");
                 (0, core_1.notice)("Pull Request has all required approvals according to codeowners-plus-plus");
             }
         }
