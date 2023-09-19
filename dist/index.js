@@ -31950,6 +31950,7 @@ function run() {
             const authToken = (0, core_1.getInput)("token");
             const octokit = (0, github_1.getOctokit)(authToken);
             const configFileContents = yield (0, utils_1.getConfigFile)(octokit, defaultBranch);
+            console.log({ configFileContents });
             (0, core_1.info)(`fetched config file contents`);
             const prNumber = (0, utils_1.getPrNumber)(github_1.context);
             (0, core_1.info)(`got PR number of current pull request ${prNumber}`);
@@ -31960,6 +31961,7 @@ function run() {
             const rules = (0, utils_1.interpretConfig)(configFileContents);
             (0, core_1.info)("interpretation of config completed");
             const codeownersConfig = new CodeOwnersConfig_1.default(rules, approvers, changedFileNames, octokit);
+            console.log({ codeownersConfig });
             if (!(yield codeownersConfig.isSatisfied())) {
                 (0, core_1.setFailed)("action codeowners-plus-plus failed because approvals from codeowners are not enough");
             }
