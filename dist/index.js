@@ -32059,6 +32059,7 @@ function isTeamOrIndividual(octokit, slug) {
             const user = yield octokit.rest.users.getByUsername({
                 username: slug,
             });
+            console.log(user.data);
             return new CodeOwner_1.Individual(user.data);
         }
         catch (error) {
