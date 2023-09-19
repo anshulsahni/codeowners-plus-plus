@@ -31951,7 +31951,6 @@ function run() {
             const authToken = (0, core_1.getInput)("token");
             const octokit = (0, github_1.getOctokit)(authToken);
             const configFileContents = yield (0, utils_1.getConfigFile)(octokit, defaultBranch);
-            console.log({ configFileContents });
             (0, core_1.info)(`fetched config file contents`);
             const prNumber = (0, utils_1.getPrNumber)(github_1.context);
             (0, core_1.info)(`got PR number of current pull request ${prNumber}`);
@@ -32064,17 +32063,14 @@ function isTeamOrIndividual(octokit, slug) {
                 org: github_1.context.payload.organization.login,
                 team_slug: slug,
             });
-            console.log({ githubTeamResponse, membersResponse });
             return new CodeOwner_1.Team(githubTeamResponse.data, membersResponse.data);
         }
         catch (error) {
-            console.log(error);
             if (error.status === 404) {
                 try {
                     const user = yield octokit.rest.users.getByUsername({
                         username: slug,
                     });
-                    console.log(user.data);
                     return new CodeOwner_1.Individual(user.data);
                 }
                 catch (error) {
