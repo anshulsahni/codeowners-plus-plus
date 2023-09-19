@@ -31948,10 +31948,7 @@ function run() {
             (0, core_1.info)(`Got default branch for the repo: ${defaultBranch}`);
             const authToken = (0, core_1.getInput)("token");
             const octokit = (0, github_1.getOctokit)(authToken);
-            // const configFileContents = await getConfigFile(octokit, defaultBranch);
-            const configFileContents = `
-      sample/* @acquisition-fe
-    `;
+            const configFileContents = yield (0, utils_1.getConfigFile)(octokit, defaultBranch);
             (0, core_1.info)(`fetched config file contents `);
             const prNumber = (0, utils_1.getPrNumber)(github_1.context);
             (0, core_1.info)(`Got PR number of current pull request ${prNumber}`);
@@ -32017,6 +32014,7 @@ function getChangedFileNames(octokit, prNumber) {
 exports.getChangedFileNames = getChangedFileNames;
 function getPRReviews(octokit, prNumber) {
     return __awaiter(this, void 0, void 0, function* () {
+        console.log({ repo: github_1.context.repo });
         const response = yield octokit.rest.pulls.listReviews({
             owner: github_1.context.repo.owner,
             repo: github_1.context.repo.repo,
