@@ -1,5 +1,6 @@
-import { keys, omit } from "lodash";
+import { keys, omit, reject } from "lodash";
 import { minimatch } from "minimatch";
+import { Octokit } from "../utils";
 import CodeOwnerRuleStatement from "./CodeOwnerRuleStatement";
 
 export default class CodeOwnersConfig {
@@ -9,27 +10,34 @@ export default class CodeOwnersConfig {
   constructor(
     config: Record<string, string>,
     approvers: Array<string>,
-    changedPaths: Array<string>
+    changedPaths: Array<string>,
+    octokit: Octokit
   ) {
     this.approvers = approvers;
-    this.config = this.getConfigForAffectedRules(config, changedPaths);
+    this.config = this.getConfigForAffectedRules(config, changedPaths, octokit);
   }
 
-  isSatisfied(): boolean {
-    return Object.keys(this.config).every((pathPattern) => {
-      this.config[pathPattern].evaluate();
-    });
+  async isSatisfied(): Promise<boolean> {
+    const ruleSatisfactions = await Promise.all(
+      Object.keys(this.config).map(async (pathPattern) => {
+        const evaluation = await this.config[pathPattern].evaluate();
+        return evaluation;
+      })
+    );
+    return ruleSatisfactions.every(Boolean);
   }
 
   private getConfigForAffectedRules(
     config: Record<string, string>,
-    changedPaths: Array<string>
+    changedPaths: Array<string>,
+    octokit: Octokit
   ): Record<string, CodeOwnerRuleStatement> {
     let affectedRules: Record<string, CodeOwnerRuleStatement> = {};
     if (config["*"] && changedPaths.length > 0) {
       affectedRules["*"] = new CodeOwnerRuleStatement(
         config["*"],
-        this.approvers
+        this.approvers,
+        octokit
       );
     }
 
@@ -43,7 +51,8 @@ export default class CodeOwnersConfig {
       if (currentAffectedRule) {
         affectedRules[currentAffectedRule] = new CodeOwnerRuleStatement(
           config[currentAffectedRule],
-          this.approvers
+          this.approvers,
+          octokit
         );
       }
     });

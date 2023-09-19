@@ -1,6 +1,11 @@
 import { Context } from "@actions/github/lib/context";
 import { context, getOctokit } from "@actions/github";
-import { Individual, Team } from "./lib/CodeOwner";
+import {
+  GithubIndividual,
+  GithubTeam,
+  Individual,
+  Team,
+} from "./lib/CodeOwner";
 
 export type Octokit = ReturnType<typeof getOctokit>;
 
@@ -73,34 +78,32 @@ export function getPrNumber(context: Context): number {
 export async function isTeamOrIndividual(
   octokit: Octokit,
   slug: string
-): Promise<Individual | Team> {
+): Promise<Team | Individual> {
   try {
-    console.log({ context: context.payload });
     const user = await octokit.rest.users.getByUsername({
       username: slug,
     });
-
-    return new Individual(slug);
+    return new Individual(user.data as GithubIndividual);
   } catch (error: any) {
     if (error.status === 404) {
       try {
-        const team = await octokit.rest.teams.getByName({
-          org: "razorpay",
+        const githubTeamResponse = await octokit.rest.teams.getByName({
+          org: context.payload.organization.login,
           team_slug: slug,
         });
-        // const members = await octokit.rest.teams.listMembersInOrg({
-        //   org: context.payload.organization,
-        // });
-        return new Team(slug, ["anshulsahni"]);
-      } catch (error: any) {
-        throw new Error(
-          `Slug - ${slug} is neither associated with a user or a org's team`
+        const membersResponse = await octokit.rest.teams.listMembersInOrg({
+          org: context.payload.organization.login,
+          team_slug: slug,
+        });
+        return new Team(
+          githubTeamResponse.data as GithubTeam,
+          membersResponse.data as Array<GithubIndividual>
         );
+      } catch (error: any) {
+        throw `Slug - ${slug} is neither associated with a user or a org's team`;
       }
     } else {
-      throw new Error(
-        `Slug - ${slug} is neither associated with a user or a org's team`
-      );
+      throw `Slug - ${slug} is neither associated with a user or a org's team`;
     }
   }
 }

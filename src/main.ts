@@ -24,9 +24,11 @@ async function run(): Promise<void> {
     const authToken = getInput("token");
 
     const octokit = getOctokit(authToken);
-    await isTeamOrIndividual(octokit, "acquisition-fe");
 
-    const configFileContents = await getConfigFile(octokit, defaultBranch);
+    // const configFileContents = await getConfigFile(octokit, defaultBranch);
+    const configFileContents = `
+      sample/* @acquisition-fe
+    `;
     logInfo(`fetched config file contents `);
 
     const prNumber = getPrNumber(context);
@@ -43,12 +45,13 @@ async function run(): Promise<void> {
     const codeownersConfig = new CodeOwnersConfig(
       rules,
       approvers,
-      changedFileNames
+      changedFileNames,
+      octokit
     );
 
-    if (!codeownersConfig.isSatisfied()) {
+    if (!(await codeownersConfig.isSatisfied())) {
       setFailed(
-        "action codeowners-plus-plus failed because approvals from codeowners are not enought"
+        "action codeowners-plus-plus failed because approvals from codeowners are not enough"
       );
     }
   } catch (error) {
