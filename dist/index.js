@@ -31831,6 +31831,7 @@ class CodeOwnerRuleStatement {
                     _d = false;
                     const statementPiece = _c;
                     if (statementPiece.startsWith("@")) {
+                        yield console.log(yield (0, utils_1.isTeamOrIndividual)(octokit, statementPiece.substring(1)));
                         statement.push(yield (0, utils_1.isTeamOrIndividual)(octokit, statementPiece.substring(1)));
                     }
                     else if (statementPiece === "&&") {
