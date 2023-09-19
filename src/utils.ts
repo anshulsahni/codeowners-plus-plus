@@ -80,25 +80,25 @@ export async function isTeamOrIndividual(
   slug: string
 ): Promise<Team | Individual> {
   try {
-    const user = await octokit.rest.users.getByUsername({
-      username: slug,
+    const githubTeamResponse = await octokit.rest.teams.getByName({
+      org: context.payload.organization.login,
+      team_slug: slug,
     });
-    return new Individual(user.data as GithubIndividual);
+    const membersResponse = await octokit.rest.teams.listMembersInOrg({
+      org: context.payload.organization.login,
+      team_slug: slug,
+    });
+    return new Team(
+      githubTeamResponse.data as GithubTeam,
+      membersResponse.data as Array<GithubIndividual>
+    );
   } catch (error: any) {
     if (error.status === 404) {
       try {
-        const githubTeamResponse = await octokit.rest.teams.getByName({
-          org: context.payload.organization.login,
-          team_slug: slug,
+        const user = await octokit.rest.users.getByUsername({
+          username: slug,
         });
-        const membersResponse = await octokit.rest.teams.listMembersInOrg({
-          org: context.payload.organization.login,
-          team_slug: slug,
-        });
-        return new Team(
-          githubTeamResponse.data as GithubTeam,
-          membersResponse.data as Array<GithubIndividual>
-        );
+        return new Individual(user.data as GithubIndividual);
       } catch (error: any) {
         throw `Slug - ${slug} is neither associated with a user or a org's team`;
       }
@@ -110,4 +110,3 @@ export async function isTeamOrIndividual(
 
 export const getDefaultBranch = (context: Context): string =>
   context.payload.repository?.default_branch;
-

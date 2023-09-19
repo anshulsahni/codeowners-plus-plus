@@ -1,4 +1,4 @@
-import { keys, omit, reject } from "lodash";
+import { keys, omit } from "lodash";
 import { minimatch } from "minimatch";
 import { Octokit } from "../utils";
 import CodeOwnerRuleStatement from "./CodeOwnerRuleStatement";
