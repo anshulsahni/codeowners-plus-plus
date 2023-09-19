@@ -31944,22 +31944,27 @@ const utils_1 = __nccwpck_require__(1314);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
+            (0, core_1.info)(`Details of the repository - repo name: ${github_1.context.repo.repo}, repo owner: ${github_1.context.repo.owner}`);
             const defaultBranch = (0, utils_1.getDefaultBranch)(github_1.context);
             (0, core_1.info)(`Got default branch for the repo: ${defaultBranch}`);
             const authToken = (0, core_1.getInput)("token");
             const octokit = (0, github_1.getOctokit)(authToken);
             const configFileContents = yield (0, utils_1.getConfigFile)(octokit, defaultBranch);
-            (0, core_1.info)(`fetched config file contents `);
+            (0, core_1.info)(`fetched config file contents`);
             const prNumber = (0, utils_1.getPrNumber)(github_1.context);
-            (0, core_1.info)(`Got PR number of current pull request ${prNumber}`);
+            (0, core_1.info)(`got PR number of current pull request ${prNumber}`);
             const approvers = yield (0, utils_1.getPRReviews)(octokit, prNumber);
             (0, core_1.info)(`fetched the list of PR approvers`);
             const changedFileNames = yield (0, utils_1.getChangedFileNames)(octokit, prNumber);
             (0, core_1.info)(`fetched the name of changed files`);
             const rules = (0, utils_1.interpretConfig)(configFileContents);
+            (0, core_1.info)("interpretation of config completed");
             const codeownersConfig = new CodeOwnersConfig_1.default(rules, approvers, changedFileNames, octokit);
             if (!(yield codeownersConfig.isSatisfied())) {
                 (0, core_1.setFailed)("action codeowners-plus-plus failed because approvals from codeowners are not enough");
+            }
+            else {
+                (0, core_1.notice)("Pull Request has all required approvals according to codeowners-plus-plus");
             }
         }
         catch (error) {
@@ -32014,7 +32019,6 @@ function getChangedFileNames(octokit, prNumber) {
 exports.getChangedFileNames = getChangedFileNames;
 function getPRReviews(octokit, prNumber) {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log({ repo: github_1.context.repo });
         const response = yield octokit.rest.pulls.listReviews({
             owner: github_1.context.repo.owner,
             repo: github_1.context.repo.repo,
