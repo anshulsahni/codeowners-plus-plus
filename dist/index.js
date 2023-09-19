@@ -31831,7 +31831,6 @@ class CodeOwnerRuleStatement {
                     _d = false;
                     const statementPiece = _c;
                     if (statementPiece.startsWith("@")) {
-                        yield console.log(yield (0, utils_1.isTeamOrIndividual)(octokit, statementPiece.substring(1)));
                         statement.push(yield (0, utils_1.isTeamOrIndividual)(octokit, statementPiece.substring(1)));
                     }
                     else if (statementPiece === "&&") {
@@ -31961,7 +31960,6 @@ function run() {
             const rules = (0, utils_1.interpretConfig)(configFileContents);
             (0, core_1.info)("interpretation of config completed");
             const codeownersConfig = new CodeOwnersConfig_1.default(rules, approvers, changedFileNames, octokit);
-            console.log({ codeownersConfig });
             if (!(yield codeownersConfig.isSatisfied())) {
                 (0, core_1.setFailed)("action codeowners-plus-plus failed because approvals from codeowners are not enough");
             }
