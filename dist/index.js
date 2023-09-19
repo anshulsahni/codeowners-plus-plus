@@ -32064,16 +32064,18 @@ function isTeamOrIndividual(octokit, slug) {
                 org: github_1.context.payload.organization.login,
                 team_slug: slug,
             });
+            console.log({ githubTeamResponse, membersResponse });
             return new CodeOwner_1.Team(githubTeamResponse.data, membersResponse.data);
         }
         catch (error) {
+            console.log(error);
             if (error.status === 404) {
                 try {
                     const user = yield octokit.rest.users.getByUsername({
                         username: slug,
                     });
-                    return new CodeOwner_1.Individual(user.data);
                     console.log(user.data);
+                    return new CodeOwner_1.Individual(user.data);
                 }
                 catch (error) {
                     throw `Slug - ${slug} is neither associated with a user or a org's team`;
