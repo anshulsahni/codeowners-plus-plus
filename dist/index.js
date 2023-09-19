@@ -32056,24 +32056,24 @@ exports.getPrNumber = getPrNumber;
 function isTeamOrIndividual(octokit, slug) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const user = yield octokit.rest.users.getByUsername({
-                username: slug,
+            const githubTeamResponse = yield octokit.rest.teams.getByName({
+                org: github_1.context.payload.organization.login,
+                team_slug: slug,
             });
-            console.log(user.data);
-            return new CodeOwner_1.Individual(user.data);
+            const membersResponse = yield octokit.rest.teams.listMembersInOrg({
+                org: github_1.context.payload.organization.login,
+                team_slug: slug,
+            });
+            return new CodeOwner_1.Team(githubTeamResponse.data, membersResponse.data);
         }
         catch (error) {
             if (error.status === 404) {
                 try {
-                    const githubTeamResponse = yield octokit.rest.teams.getByName({
-                        org: github_1.context.payload.organization.login,
-                        team_slug: slug,
+                    const user = yield octokit.rest.users.getByUsername({
+                        username: slug,
                     });
-                    const membersResponse = yield octokit.rest.teams.listMembersInOrg({
-                        org: github_1.context.payload.organization.login,
-                        team_slug: slug,
-                    });
-                    return new CodeOwner_1.Team(githubTeamResponse.data, membersResponse.data);
+                    return new CodeOwner_1.Individual(user.data);
+                    console.log(user.data);
                 }
                 catch (error) {
                     throw `Slug - ${slug} is neither associated with a user or a org's team`;
