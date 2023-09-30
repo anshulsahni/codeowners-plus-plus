@@ -1,4 +1,4 @@
-import { isTeamOrIndividual, Octokit } from "../utils";
+import { getTeamOrIndividual, Octokit } from "../utils";
 import { CodeOwner } from "./CodeOwner";
 
 type Operator = (result: boolean, codeOwner: CodeOwner) => boolean;
@@ -61,7 +61,7 @@ export default class CodeOwnerRuleStatement {
     for await (const statementPiece of statementString.split(" ")) {
       if (statementPiece.startsWith("@")) {
         statement.push(
-          await isTeamOrIndividual(octokit, statementPiece.substring(1))
+          await getTeamOrIndividual(octokit, statementPiece.substring(1))
         );
       } else if (statementPiece === "&&") {
         statement.push(this.and);
