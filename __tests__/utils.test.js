@@ -1,8 +1,10 @@
+const { Team, Individual } = require("../src/lib/CodeOwner");
 const {
   getPrNumber,
   getDefaultBranch,
   interpretConfig,
   getChangedFileNames,
+  getTeamOrIndividual,
 } = require("../src/utils");
 
 describe("utils.ts", () => {
@@ -212,4 +214,190 @@ path/to/something/more @user4 && @user5
   describe("getReviews()", () => {});
 
   describe("getConfigFile()", () => {});
+
+  describe("async getTeamOrIndividual()", () => {
+    it("should return Team class when github returns team and >0 members", async () => {
+      const sampleOctokit = {
+        rest: {
+          teams: {
+            getByName: jest.fn(() =>
+              Promise.resolve({
+                status: 200,
+                data: {
+                  slug: "sample_team",
+                  id: 123,
+                },
+              })
+            ),
+            listMembersInOrg: jest.fn(() =>
+              Promise.resolve({
+                status: 200,
+                data: [
+                  {
+                    login: "member1",
+                    id: 124,
+                  },
+                  { login: "member2", id: 234 },
+                ],
+              })
+            ),
+          },
+        },
+      };
+      const sampleContext = {
+        payload: { organization: { login: "sample_org" } },
+      };
+      const actualResult = await getTeamOrIndividual(
+        sampleContext,
+        sampleOctokit,
+        "sample_team"
+      );
+      expect(actualResult).toBeInstanceOf(Team);
+      expect(actualResult.teamId).toBe("sample_team");
+      expect(actualResult.members.length).toBe(2);
+      expect(actualResult.members[0]).toBeInstanceOf(Individual);
+    });
+
+    it("should return Team instance when github returns team and 0 members", async () => {
+      const sampleOctokit = {
+        rest: {
+          teams: {
+            getByName: jest.fn(() =>
+              Promise.resolve({
+                status: 200,
+                data: {
+                  slug: "sample_team",
+                  id: 123,
+                },
+              })
+            ),
+            listMembersInOrg: jest.fn(() =>
+              Promise.resolve({
+                status: 200,
+                data: [],
+              })
+            ),
+          },
+        },
+      };
+      const sampleContext = {
+        payload: { organization: { login: "sample_org" } },
+      };
+      const actualResult = await getTeamOrIndividual(
+        sampleContext,
+        sampleOctokit,
+        "sample_team"
+      );
+      expect(actualResult).toBeInstanceOf(Team);
+      expect(actualResult.teamId).toBe("sample_team");
+      expect(actualResult.members.length).toBe(0);
+    });
+
+    it("should return Individual instance when github doesn't return team but return user", async () => {
+      const sampleOctokit = {
+        rest: {
+          teams: { getByName: jest.fn(() => Promise.reject({ status: 404 })) },
+          users: {
+            getByUsername: jest.fn(() =>
+              Promise.resolve({
+                status: 200,
+                data: { login: "sample_user", id: 123 },
+              })
+            ),
+          },
+        },
+      };
+      const sampleContext = {
+        payload: { organization: { login: "sample_org" } },
+      };
+      const actualResult = await getTeamOrIndividual(
+        sampleContext,
+        sampleOctokit,
+        "sample_team"
+      );
+      console.log({ actualResult });
+      expect(actualResult).toBeInstanceOf(Individual);
+      expect(actualResult.userId).toBe("sample_user");
+      expect(actualResult.id).toBe(123);
+    });
+
+    it("should throw exception if github returns 404 for both team and user api", async () => {
+      const sampleOctokit = {
+        rest: {
+          teams: { getByName: jest.fn(() => Promise.reject({ status: 404 })) },
+          users: {
+            getByUsername: jest.fn(() =>
+              Promise.reject({
+                status: 404,
+              })
+            ),
+          },
+        },
+      };
+      const sampleContext = {
+        payload: { organization: { login: "sample_org" } },
+      };
+      expect(
+        async () =>
+          await getTeamOrIndividual(sampleContext, sampleOctokit, "sample_team")
+      ).rejects.toThrowError(
+        "\"Slug - sample_team is neither associated with a user or a org's team"
+      );
+    });
+
+    it("should throw exception if team API returns an error something other than with status 404", async () => {
+      const sampleOctokit = {
+        rest: {
+          teams: { getByName: jest.fn(() => Promise.reject({ status: 502 })) },
+          users: {
+            getByUsername: jest.fn(() =>
+              Promise.resolve({
+                status: 200,
+                data: { login: "sample_user", id: 123 },
+              })
+            ),
+          },
+        },
+      };
+      const sampleContext = {
+        payload: { organization: { login: "sample_org" } },
+      };
+      expect(
+        async () =>
+          await getTeamOrIndividual(sampleContext, sampleOctokit, "sample_team")
+      ).rejects.toThrow();
+    });
+
+    it("should throw exception if members API returns an error something other than with status 404", async () => {
+      const sampleOctokit = {
+        rest: {
+          teams: {
+            getByName: jest.fn(() =>
+              Promise.resolve({ status: 200, data: {} })
+            ),
+            listMembersInOrg: jest.fn(() =>
+              Promise.reject({
+                status: 500,
+              })
+            ),
+          },
+          users: {
+            getByUsername: jest.fn(() =>
+              Promise.resolve({
+                status: 200,
+                data: { login: "sample_user", id: 123 },
+              })
+            ),
+          },
+        },
+      };
+      const sampleContext = {
+        payload: { organization: { login: "sample_org" } },
+      };
+      expect(
+        async () =>
+          await getTeamOrIndividual(sampleContext, sampleOctokit, "sample_team")
+      ).rejects.toThrow();
+    });
+  });
 });

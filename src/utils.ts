@@ -75,7 +75,8 @@ export function getPrNumber(context: Context): number {
   throw "action doesn't have any PR associated with it";
 }
 
-export async function isTeamOrIndividual(
+export async function getTeamOrIndividual(
+  context: Context,
   octokit: Octokit,
   slug: string
 ): Promise<Team | Individual> {
@@ -84,6 +85,7 @@ export async function isTeamOrIndividual(
       org: context.payload.organization.login,
       team_slug: slug,
     });
+
     const membersResponse = await octokit.rest.teams.listMembersInOrg({
       org: context.payload.organization.login,
       team_slug: slug,
@@ -103,7 +105,7 @@ export async function isTeamOrIndividual(
         throw `Slug - ${slug} is neither associated with a user or a org's team`;
       }
     } else {
-      throw `Slug - ${slug} is neither associated with a user or a org's team`;
+      throw error;
     }
   }
 }
