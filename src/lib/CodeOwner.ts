@@ -43,10 +43,3 @@ export class Team implements CodeOwner {
     return _intersection(approvers, _map(this.members, "userId")).length > 0;
   }
 }
-
-export default class CodeOwnerClass {
-  userId: string;
-  constructor(userId: string) {
-    this.userId = userId;
-  }
-}

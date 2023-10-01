@@ -1,3 +1,5 @@
+const { Individual, Team } = require("../../src/lib/CodeOwner");
+
 const CodeOwner = require("../../src/lib/CodeOwner").default;
 const CodeOwnerRuleStatement =
   require("../../src/lib/CodeOwnerRuleStatement").default;
@@ -33,33 +35,919 @@ describe("CodeOwnerRuleStatement", () => {
   });
 
   describe("evaluate()", () => {
-    test.each([
-      { statement: "@someone1", approvers: ["someone1"] },
-      { statement: "@someone1 || @someone2", approvers: ["someone1"] },
-      {
-        statement: "@someone1 && @someone2",
-        approvers: ["someone1", "someone2"],
-      },
-      {
-        statement: "@someone1 || @someone2 || @someone3",
-        approvers: ["someone2"],
-      },
-      {
-        statement: "@someone1 && @someone2 && @someone3",
-        approvers: ["someone3", "someone2", "someone1"],
-      },
-      {
-        statement: "@someone1 || @someone2 && @someone3",
-        approvers: ["someone3", "someone1"],
-      },
-    ])(
-      "it should return true with statementString: $statement & approvers: $approvers",
-      ({ statement, approvers }) => {
-        expect(
-          new CodeOwnerRuleStatement(statement, approvers).evaluate()
-        ).toBe(true);
-      }
-    );
+    describe("should return true if approvers satisfy statement's condition", () => {
+      it("with single user in statement and in approver", async () => {
+        const statement = "@someone1";
+        const approvers = ["someone1"];
+        const octokit = {
+          rest: {
+            teams: {
+              getByName: jest.fn(() => Promise.reject({ status: 404 })),
+              listMembersInOrg: jest.fn(),
+            },
+            users: {
+              getByUsername: jest.fn(() =>
+                Promise.resolve({
+                  status: 200,
+                  data: { login: "someone1", id: 123 },
+                })
+              ),
+            },
+          },
+        };
+
+        const ruleStatement = new CodeOwnerRuleStatement(
+          statement,
+          approvers,
+          octokit
+        );
+        expect(await ruleStatement.evaluate()).toBe(true);
+      });
+
+      it("with single user in statement and two approvers", async () => {
+        const statement = "@someone1";
+        const approvers = ["someone1", "someone2"];
+
+        const mockGetByUsername = jest.fn();
+        mockGetByUsername.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { login: "someone1", id: 123 } })
+        );
+        mockGetByUsername.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { login: "someone2", id: 456 } })
+        );
+
+        const octokit = {
+          rest: {
+            teams: {
+              getByName: jest.fn(() => Promise.reject({ status: 404 })),
+              listMembersInOrg: jest.fn(),
+            },
+            users: {
+              getByUsername: mockGetByUsername,
+            },
+          },
+        };
+
+        const ruleStatement = new CodeOwnerRuleStatement(
+          statement,
+          approvers,
+          octokit
+        );
+        expect(await ruleStatement.evaluate()).toBe(true);
+      });
+
+      it("with team and approvers part of team members", async () => {
+        const statement = "@team1";
+        const approvers = ["someone1"];
+
+        const mockGetTeamByName = jest.fn(() =>
+          Promise.resolve({
+            status: 200,
+            data: { slug: "team1", id: 123 },
+          })
+        );
+        const mockListMembersInOrg = jest.fn(() =>
+          Promise.resolve({
+            status: 200,
+            data: [{ login: "someone1", id: 456 }],
+          })
+        );
+
+        const octokit = {
+          rest: {
+            teams: {
+              getByName: mockGetTeamByName,
+              listMembersInOrg: mockListMembersInOrg,
+            },
+            users: {
+              getByUsername: jest.fn(),
+            },
+          },
+        };
+
+        const ruleStatement = new CodeOwnerRuleStatement(
+          statement,
+          approvers,
+          octokit
+        );
+        expect(await ruleStatement.evaluate()).toBe(true);
+      });
+
+      it("with team and one approvers part of team members and other not", async () => {
+        const statement = "@team1";
+        const approvers = ["someone1", "someone2"];
+
+        const mockGetTeamByName = jest.fn(() =>
+          Promise.resolve({
+            status: 200,
+            data: { slug: "team1", id: 123 },
+          })
+        );
+        const mockListMembersInOrg = jest.fn(() =>
+          Promise.resolve({
+            status: 200,
+            data: [
+              { login: "someone1", id: 456 },
+              { login: "someone3", id: 789 },
+            ],
+          })
+        );
+
+        const octokit = {
+          rest: {
+            teams: {
+              getByName: mockGetTeamByName,
+              listMembersInOrg: mockListMembersInOrg,
+            },
+            users: {
+              getByUsername: jest.fn(),
+            },
+          },
+        };
+
+        const ruleStatement = new CodeOwnerRuleStatement(
+          statement,
+          approvers,
+          octokit
+        );
+        expect(await ruleStatement.evaluate()).toBe(true);
+      });
+
+      it("when approvals required from two individuals and both approved it", async () => {
+        const statement = "@someone1 && @someone2";
+        const approvers = ["someone1", "someone2"];
+
+        const mockGetByUsername = jest.fn();
+        mockGetByUsername.mockReturnValueOnce({
+          status: 200,
+          data: { login: "someone1", id: 123 },
+        });
+        mockGetByUsername.mockReturnValueOnce({
+          status: 200,
+          data: { login: "someone2", id: 456 },
+        });
+        const octokit = {
+          rest: {
+            teams: {
+              getByName: jest.fn(() => Promise.reject({ status: 404 })),
+              listMembersInOrg: jest.fn(),
+            },
+            users: {
+              getByUsername: mockGetByUsername,
+            },
+          },
+        };
+
+        const ruleStatement = new CodeOwnerRuleStatement(
+          statement,
+          approvers,
+          octokit
+        );
+        expect(await ruleStatement.evaluate()).toBe(true);
+      });
+
+      it("when approvals required from either of two individuals and one approved it", async () => {
+        const statement = "@someone1 || @someone2";
+        const approvers = ["someone1"];
+
+        const mockGetByUsername = jest.fn();
+        mockGetByUsername.mockReturnValueOnce({
+          status: 200,
+          data: { login: "someone1", id: 123 },
+        });
+        mockGetByUsername.mockReturnValueOnce({
+          status: 200,
+          data: { login: "someone2", id: 456 },
+        });
+        const octokit = {
+          rest: {
+            teams: {
+              getByName: jest.fn(() => Promise.reject({ status: 404 })),
+              listMembersInOrg: jest.fn(),
+            },
+            users: {
+              getByUsername: mockGetByUsername,
+            },
+          },
+        };
+
+        const ruleStatement = new CodeOwnerRuleStatement(
+          statement,
+          approvers,
+          octokit
+        );
+        expect(await ruleStatement.evaluate()).toBe(true);
+      });
+
+      it("when approvals required from two teams and members from both approve it", async () => {
+        const statement = "@team1 && @team2";
+        const approvers = ["someone1", "someone3"];
+
+        const mockGetTeamByName = jest.fn();
+        mockGetTeamByName.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { slug: "team1", id: 123 } })
+        );
+        mockGetTeamByName.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { slug: "team2", id: 456 } })
+        );
+
+        const mockListMembersInOrg = jest.fn();
+        mockListMembersInOrg.mockReturnValueOnce(
+          Promise.resolve({
+            status: 200,
+            data: [
+              { login: "someone1", id: 1 },
+              { login: "someone2", id: 2 },
+            ],
+          })
+        );
+        mockListMembersInOrg.mockReturnValueOnce(
+          Promise.resolve({
+            status: 200,
+            data: [
+              { login: "someone3", id: 3 },
+              { login: "someone4", id: 4 },
+            ],
+          })
+        );
+
+        const mockGetByUsername = jest.fn();
+        mockGetByUsername.mockReturnValueOnce({
+          status: 200,
+          data: { login: "someone1", id: 123 },
+        });
+        mockGetByUsername.mockReturnValueOnce({
+          status: 200,
+          data: { login: "someone2", id: 456 },
+        });
+        const octokit = {
+          rest: {
+            teams: {
+              getByName: mockGetTeamByName,
+              listMembersInOrg: mockListMembersInOrg,
+            },
+            users: {
+              getByUsername: jest.fn(),
+            },
+          },
+        };
+
+        const ruleStatement = new CodeOwnerRuleStatement(
+          statement,
+          approvers,
+          octokit
+        );
+        expect(await ruleStatement.evaluate()).toBe(true);
+      });
+
+      it("when approvals required from either of two teams and members from first team approves it", async () => {
+        const statement = "@team1 || @team2";
+        const approvers = ["someone1"];
+
+        const mockGetTeamByName = jest.fn();
+        mockGetTeamByName.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { slug: "team1", id: 123 } })
+        );
+        mockGetTeamByName.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { slug: "team2", id: 456 } })
+        );
+
+        const mockListMembersInOrg = jest.fn();
+        mockListMembersInOrg.mockReturnValueOnce(
+          Promise.resolve({
+            status: 200,
+            data: [
+              { login: "someone1", id: 1 },
+              { login: "someone2", id: 2 },
+            ],
+          })
+        );
+        mockListMembersInOrg.mockReturnValueOnce(
+          Promise.resolve({
+            status: 200,
+            data: [
+              { login: "someone3", id: 3 },
+              { login: "someone4", id: 4 },
+            ],
+          })
+        );
+
+        const mockGetByUsername = jest.fn();
+        mockGetByUsername.mockReturnValueOnce({
+          status: 200,
+          data: { login: "someone1", id: 123 },
+        });
+        mockGetByUsername.mockReturnValueOnce({
+          status: 200,
+          data: { login: "someone2", id: 456 },
+        });
+        const octokit = {
+          rest: {
+            teams: {
+              getByName: mockGetTeamByName,
+              listMembersInOrg: mockListMembersInOrg,
+            },
+            users: {
+              getByUsername: jest.fn(),
+            },
+          },
+        };
+
+        const ruleStatement = new CodeOwnerRuleStatement(
+          statement,
+          approvers,
+          octokit
+        );
+        expect(await ruleStatement.evaluate()).toBe(true);
+      });
+
+      it("when approvals required from either of two teams and members from second approves it", async () => {
+        const statement = "@team1 || @team2";
+        const approvers = ["someone3"];
+
+        const mockGetTeamByName = jest.fn();
+        mockGetTeamByName.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { slug: "team1", id: 123 } })
+        );
+        mockGetTeamByName.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { slug: "team2", id: 456 } })
+        );
+
+        const mockListMembersInOrg = jest.fn();
+        mockListMembersInOrg.mockReturnValueOnce(
+          Promise.resolve({
+            status: 200,
+            data: [
+              { login: "someone1", id: 1 },
+              { login: "someone2", id: 2 },
+            ],
+          })
+        );
+        mockListMembersInOrg.mockReturnValueOnce(
+          Promise.resolve({
+            status: 200,
+            data: [
+              { login: "someone3", id: 3 },
+              { login: "someone4", id: 4 },
+            ],
+          })
+        );
+
+        const mockGetByUsername = jest.fn();
+        mockGetByUsername.mockReturnValueOnce({
+          status: 200,
+          data: { login: "someone1", id: 123 },
+        });
+        mockGetByUsername.mockReturnValueOnce({
+          status: 200,
+          data: { login: "someone2", id: 456 },
+        });
+        const octokit = {
+          rest: {
+            teams: {
+              getByName: mockGetTeamByName,
+              listMembersInOrg: mockListMembersInOrg,
+            },
+            users: {
+              getByUsername: jest.fn(),
+            },
+          },
+        };
+
+        const ruleStatement = new CodeOwnerRuleStatement(
+          statement,
+          approvers,
+          octokit
+        );
+        expect(await ruleStatement.evaluate()).toBe(true);
+      });
+
+      it("when approvals required from a team and individual and approval comes from individual and team member", async () => {
+        const statement = "@someone1 && @team2";
+        const approvers = ["someone3", "someone1"];
+
+        const mockGetTeamByName = jest.fn();
+        mockGetTeamByName.mockReturnValueOnce(Promise.reject({ status: 404 }));
+        mockGetTeamByName.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { slug: "team2", id: 456 } })
+        );
+
+        const mockListMembersInOrg = jest.fn();
+        mockListMembersInOrg.mockReturnValueOnce(
+          Promise.resolve({
+            status: 200,
+            data: [
+              { login: "someone3", id: 3 },
+              { login: "someone4", id: 4 },
+            ],
+          })
+        );
+
+        const mockGetByUsername = jest.fn(() =>
+          Promise.resolve({
+            status: 200,
+            data: { login: "someone1", id: 123 },
+          })
+        );
+
+        const octokit = {
+          rest: {
+            teams: {
+              getByName: mockGetTeamByName,
+              listMembersInOrg: mockListMembersInOrg,
+            },
+            users: {
+              getByUsername: mockGetByUsername,
+            },
+          },
+        };
+
+        const ruleStatement = new CodeOwnerRuleStatement(
+          statement,
+          approvers,
+          octokit
+        );
+        expect(await ruleStatement.evaluate()).toBe(true);
+      });
+
+      it("when approvals required from a team and individual and approval comes from individual", async () => {
+        const statement = "@someone1 || @team2";
+        const approvers = ["someone1"];
+
+        const mockGetTeamByName = jest.fn();
+        mockGetTeamByName.mockReturnValueOnce(Promise.reject({ status: 404 }));
+        mockGetTeamByName.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { slug: "team2", id: 456 } })
+        );
+
+        const mockListMembersInOrg = jest.fn();
+        mockListMembersInOrg.mockReturnValueOnce(
+          Promise.resolve({
+            status: 200,
+            data: [
+              { login: "someone3", id: 3 },
+              { login: "someone4", id: 4 },
+            ],
+          })
+        );
+
+        const mockGetByUsername = jest.fn(() =>
+          Promise.resolve({
+            status: 200,
+            data: { login: "someone1", id: 123 },
+          })
+        );
+
+        const octokit = {
+          rest: {
+            teams: {
+              getByName: mockGetTeamByName,
+              listMembersInOrg: mockListMembersInOrg,
+            },
+            users: {
+              getByUsername: mockGetByUsername,
+            },
+          },
+        };
+
+        const ruleStatement = new CodeOwnerRuleStatement(
+          statement,
+          approvers,
+          octokit
+        );
+        expect(await ruleStatement.evaluate()).toBe(true);
+      });
+
+      it("when approvals required from a team or individual and approval comes from team member", async () => {
+        const statement = "@someone1 || @team2";
+        const approvers = ["someone3"];
+
+        const mockGetTeamByName = jest.fn();
+        mockGetTeamByName.mockReturnValueOnce(Promise.reject({ status: 404 }));
+        mockGetTeamByName.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { slug: "team2", id: 456 } })
+        );
+
+        const mockListMembersInOrg = jest.fn();
+        mockListMembersInOrg.mockReturnValueOnce(
+          Promise.resolve({
+            status: 200,
+            data: [
+              { login: "someone3", id: 3 },
+              { login: "someone4", id: 4 },
+            ],
+          })
+        );
+
+        const mockGetByUsername = jest.fn(() =>
+          Promise.resolve({
+            status: 200,
+            data: { login: "someone1", id: 123 },
+          })
+        );
+
+        const octokit = {
+          rest: {
+            teams: {
+              getByName: mockGetTeamByName,
+              listMembersInOrg: mockListMembersInOrg,
+            },
+            users: {
+              getByUsername: mockGetByUsername,
+            },
+          },
+        };
+
+        const ruleStatement = new CodeOwnerRuleStatement(
+          statement,
+          approvers,
+          octokit
+        );
+        expect(await ruleStatement.evaluate()).toBe(true);
+      });
+    });
+  });
+
+  describe("statementStringToObj()", () => {
+    describe("should return Statement", () => {
+      it("with correct order of Individuals - 1", async () => {
+        const statementString = "@someone1";
+        const sampleOctokit = {
+          rest: {
+            teams: {
+              getByName: jest.fn(() => Promise.reject({ status: 404 })),
+            },
+            users: {
+              getByUsername: jest.fn(() =>
+                Promise.resolve({
+                  status: 200,
+                  data: { login: "someone1", id: 123 },
+                })
+              ),
+            },
+          },
+        };
+        const statement = await new CodeOwnerRuleStatement(
+          statementString,
+          [],
+          sampleOctokit
+        ).statementStringToObj(statementString, sampleOctokit);
+
+        expect(Array.isArray(statement)).toBe(true);
+        expect(statement[0]).toBeInstanceOf(Individual);
+        expect(statement[0].userId).toBe("someone1");
+      });
+
+      it("with correct order of Individuals - 2 ", async () => {
+        const statementString = "@someone1 @someone2";
+        const mockGetByUsername = jest.fn();
+        mockGetByUsername.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { login: "someone1", id: 123 } })
+        );
+        mockGetByUsername.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { login: "someone2", id: 123 } })
+        );
+        const sampleOctokit = {
+          rest: {
+            teams: {
+              getByName: jest.fn(() => Promise.reject({ status: 404 })),
+            },
+            users: {
+              getByUsername: mockGetByUsername,
+            },
+          },
+        };
+        const statement = await new CodeOwnerRuleStatement(
+          statementString,
+          [],
+          sampleOctokit
+        ).statementStringToObj(statementString, sampleOctokit);
+
+        expect(Array.isArray(statement)).toBe(true);
+        expect(statement.length).toBe(2);
+        expect(statement[0]).toBeInstanceOf(Individual);
+        expect(statement[1]).toBeInstanceOf(Individual);
+        expect(statement[0].userId).toBe("someone1");
+        expect(statement[1].userId).toBe("someone2");
+      });
+
+      it("with correct order of Teams - 1", async () => {
+        const statementString = "@team1";
+        const mockGetTeamByName = jest.fn();
+        mockGetTeamByName.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { slug: "team1", id: 123 } })
+        );
+        const sampleOctokit = {
+          rest: {
+            teams: {
+              getByName: mockGetTeamByName,
+              listMembersInOrg: jest.fn(() =>
+                Promise.resolve({ status: 200, data: [] })
+              ),
+            },
+            users: {
+              getByUsername: jest.fn(() => Promise.reject({ status: 404 })),
+            },
+          },
+        };
+        const statement = await new CodeOwnerRuleStatement(
+          statementString,
+          [],
+          sampleOctokit
+        ).statementStringToObj(statementString, sampleOctokit);
+
+        expect(Array.isArray(statement)).toBe(true);
+        expect(statement.length).toBe(1);
+        expect(statement[0]).toBeInstanceOf(Team);
+        expect(statement[0].teamId).toBe("team1");
+      });
+
+      it("with correct order of Teams - 2", async () => {
+        const statementString = "@team1 @team2";
+        const mockGetTeamByName = jest.fn();
+        mockGetTeamByName.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { slug: "team1", id: 123 } })
+        );
+        mockGetTeamByName.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { slug: "team2", id: 456 } })
+        );
+
+        const sampleOctokit = {
+          rest: {
+            teams: {
+              getByName: mockGetTeamByName,
+              listMembersInOrg: jest.fn(() =>
+                Promise.resolve({ status: 200, data: [] })
+              ),
+            },
+            users: {
+              getByUsername: jest.fn(() => Promise.reject({ status: 404 })),
+            },
+          },
+        };
+        const statement = await new CodeOwnerRuleStatement(
+          statementString,
+          [],
+          sampleOctokit
+        ).statementStringToObj(statementString, sampleOctokit);
+
+        expect(Array.isArray(statement)).toBe(true);
+        expect(statement.length).toBe(2);
+        expect(statement[0]).toBeInstanceOf(Team);
+        expect(statement[0].teamId).toBe("team1");
+        expect(statement[1]).toBeInstanceOf(Team);
+        expect(statement[1].teamId).toBe("team2");
+      });
+
+      it("with correct order of CodeOwners with combination of team and individual - 1", async () => {
+        const statementString = "@someone1 @team1";
+        const mockGetTeamByName = jest.fn();
+        mockGetTeamByName.mockReturnValueOnce(Promise.reject({ status: 404 }));
+        mockGetTeamByName.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { slug: "team1", id: 123 } })
+        );
+
+        const mockGetByUsername = jest.fn();
+        mockGetByUsername.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { login: "someone1", id: 456 } })
+        );
+
+        const mockListMembersInOrg = jest.fn(() =>
+          Promise.resolve({ status: 200, data: [] })
+        );
+
+        const sampleOctokit = {
+          rest: {
+            teams: {
+              getByName: mockGetTeamByName,
+              listMembersInOrg: mockListMembersInOrg,
+            },
+            users: {
+              getByUsername: mockGetByUsername,
+            },
+          },
+        };
+        const statement = await new CodeOwnerRuleStatement(
+          statementString,
+          [],
+          sampleOctokit
+        ).statementStringToObj(statementString, sampleOctokit);
+
+        expect(Array.isArray(statement)).toBe(true);
+        expect(statement.length).toBe(2);
+        expect(statement[0]).toBeInstanceOf(Individual);
+        expect(statement[0].userId).toBe("someone1");
+        expect(statement[1]).toBeInstanceOf(Team);
+        expect(statement[1].teamId).toBe("team1");
+      });
+
+      it("with correct order of CodeOwners with combination of team and individual - 2", async () => {
+        const statementString = "@team1 @someone1";
+        const mockGetTeamByName = jest.fn();
+        mockGetTeamByName.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { slug: "team1", id: 123 } })
+        );
+        mockGetTeamByName.mockReturnValueOnce(Promise.reject({ status: 404 }));
+
+        const mockGetByUsername = jest.fn();
+        mockGetByUsername.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { login: "someone1", id: 456 } })
+        );
+
+        const mockListMembersInOrg = jest.fn(() =>
+          Promise.resolve({ status: 200, data: [] })
+        );
+
+        const sampleOctokit = {
+          rest: {
+            teams: {
+              getByName: mockGetTeamByName,
+              listMembersInOrg: mockListMembersInOrg,
+            },
+            users: {
+              getByUsername: mockGetByUsername,
+            },
+          },
+        };
+        const statement = await new CodeOwnerRuleStatement(
+          statementString,
+          [],
+          sampleOctokit
+        ).statementStringToObj(statementString, sampleOctokit);
+
+        expect(Array.isArray(statement)).toBe(true);
+        expect(statement.length).toBe(2);
+        expect(statement[0]).toBeInstanceOf(Team);
+        expect(statement[0].teamId).toBe("team1");
+        expect(statement[1]).toBeInstanceOf(Individual);
+        expect(statement[1].userId).toBe("someone1");
+      });
+
+      it("with correct order of operators (AND) and users", async () => {
+        const statementString = "@someone1 && @someone2";
+        const mockGetTeamByName = jest.fn(() =>
+          Promise.reject({ status: 404 })
+        );
+
+        const mockGetByUsername = jest.fn();
+        mockGetByUsername.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { login: "someone1", id: 456 } })
+        );
+        mockGetByUsername.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { login: "someone2", id: 789 } })
+        );
+
+        const mockListMembersInOrg = jest.fn(() =>
+          Promise.resolve({ status: 200, data: [] })
+        );
+
+        const sampleOctokit = {
+          rest: {
+            teams: {
+              getByName: mockGetTeamByName,
+              listMembersInOrg: mockListMembersInOrg,
+            },
+            users: {
+              getByUsername: mockGetByUsername,
+            },
+          },
+        };
+        const statement = await new CodeOwnerRuleStatement(
+          statementString,
+          [],
+          sampleOctokit
+        ).statementStringToObj(statementString, sampleOctokit);
+
+        expect(Array.isArray(statement)).toBe(true);
+        expect(statement[0]).toBeInstanceOf(Individual);
+        expect(typeof statement[1]).toBe("function");
+        expect(statement[1].name).toBe("and");
+        expect(statement[2]).toBeInstanceOf(Individual);
+      });
+
+      it("with correct order of operators (OR) and users", async () => {
+        const statementString = "@someone1 || @someone2";
+        const mockGetTeamByName = jest.fn(() =>
+          Promise.reject({ status: 404 })
+        );
+
+        const mockGetByUsername = jest.fn();
+        mockGetByUsername.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { login: "someone1", id: 456 } })
+        );
+        mockGetByUsername.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { login: "someone2", id: 789 } })
+        );
+
+        const mockListMembersInOrg = jest.fn(() =>
+          Promise.resolve({ status: 200, data: [] })
+        );
+
+        const sampleOctokit = {
+          rest: {
+            teams: {
+              getByName: mockGetTeamByName,
+              listMembersInOrg: mockListMembersInOrg,
+            },
+            users: {
+              getByUsername: mockGetByUsername,
+            },
+          },
+        };
+        const statement = await new CodeOwnerRuleStatement(
+          statementString,
+          [],
+          sampleOctokit
+        ).statementStringToObj(statementString, sampleOctokit);
+
+        expect(Array.isArray(statement)).toBe(true);
+        expect(statement[0]).toBeInstanceOf(Individual);
+        expect(typeof statement[1]).toBe("function");
+        expect(statement[1].name).toBe("or");
+        expect(statement[2]).toBeInstanceOf(Individual);
+      });
+
+      it("with correct order of operators (OR) and team", async () => {
+        const statementString = "@team1 || @team2";
+        const mockGetTeamByName = jest.fn();
+        mockGetTeamByName.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { slug: "team1", id: 456 } })
+        );
+        mockGetTeamByName.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { slug: "team2", id: 456 } })
+        );
+
+        const mockGetByUsername = jest.fn();
+
+        const mockListMembersInOrg = jest.fn(() =>
+          Promise.resolve({ status: 200, data: [] })
+        );
+
+        const sampleOctokit = {
+          rest: {
+            teams: {
+              getByName: mockGetTeamByName,
+              listMembersInOrg: mockListMembersInOrg,
+            },
+            users: {
+              getByUsername: mockGetByUsername,
+            },
+          },
+        };
+        const statement = await new CodeOwnerRuleStatement(
+          statementString,
+          [],
+          sampleOctokit
+        ).statementStringToObj(statementString, sampleOctokit);
+
+        expect(Array.isArray(statement)).toBe(true);
+        expect(statement[0]).toBeInstanceOf(Team);
+        expect(typeof statement[1]).toBe("function");
+        expect(statement[1].name).toBe("or");
+        expect(statement[2]).toBeInstanceOf(Team);
+      });
+
+      it("with correct order of operators (AND) team and user", async () => {
+        const statementString = "@team1 && @someone1";
+        const mockGetTeamByName = jest.fn();
+        mockGetTeamByName.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { slug: "team1", id: 456 } })
+        );
+        mockGetTeamByName.mockReturnValueOnce(Promise.reject({ status: 404 }));
+
+        const mockGetByUsername = jest.fn();
+        mockGetByUsername.mockReturnValueOnce(
+          Promise.resolve({ status: 200, data: { login: "someone1", id: 789 } })
+        );
+
+        const mockListMembersInOrg = jest.fn(() =>
+          Promise.resolve({ status: 200, data: [] })
+        );
+
+        const sampleOctokit = {
+          rest: {
+            teams: {
+              getByName: mockGetTeamByName,
+              listMembersInOrg: mockListMembersInOrg,
+            },
+            users: {
+              getByUsername: mockGetByUsername,
+            },
+          },
+        };
+        const statement = await new CodeOwnerRuleStatement(
+          statementString,
+          [],
+          sampleOctokit
+        ).statementStringToObj(statementString, sampleOctokit);
+
+        expect(Array.isArray(statement)).toBe(true);
+        expect(statement[0]).toBeInstanceOf(Team);
+        expect(typeof statement[1]).toBe("function");
+        expect(statement[1].name).toBe("and");
+        expect(statement[2]).toBeInstanceOf(Individual);
+      });
+    });
   });
 
   describe("isCodeOwnerApprover()", () => {

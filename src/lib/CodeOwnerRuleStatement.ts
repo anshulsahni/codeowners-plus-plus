@@ -1,3 +1,4 @@
+import { context } from "@actions/github";
 import { getTeamOrIndividual, Octokit } from "../utils";
 import { CodeOwner } from "./CodeOwner";
 
@@ -19,6 +20,7 @@ export default class CodeOwnerRuleStatement {
     this.octokit = octokit;
     this.statement = null;
   }
+
   async evaluate(): Promise<boolean> {
     const statement: Statement = await this.statementStringToObj(
       this.statementString,
@@ -61,7 +63,11 @@ export default class CodeOwnerRuleStatement {
     for await (const statementPiece of statementString.split(" ")) {
       if (statementPiece.startsWith("@")) {
         statement.push(
-          await getTeamOrIndividual(octokit, statementPiece.substring(1))
+          await getTeamOrIndividual(
+            context,
+            octokit,
+            statementPiece.substring(1)
+          )
         );
       } else if (statementPiece === "&&") {
         statement.push(this.and);
