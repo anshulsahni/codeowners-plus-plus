@@ -31759,12 +31759,6 @@ class Team {
     }
 }
 exports.Team = Team;
-class CodeOwnerClass {
-    constructor(userId) {
-        this.userId = userId;
-    }
-}
-exports["default"] = CodeOwnerClass;
 
 
 /***/ }),
@@ -31791,6 +31785,7 @@ var __asyncValues = (this && this.__asyncValues) || function (o) {
     function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+const github_1 = __nccwpck_require__(5438);
 const utils_1 = __nccwpck_require__(1314);
 class CodeOwnerRuleStatement {
     constructor(statementString, approvers, octokit) {
@@ -31831,7 +31826,7 @@ class CodeOwnerRuleStatement {
                     _d = false;
                     const statementPiece = _c;
                     if (statementPiece.startsWith("@")) {
-                        statement.push(yield (0, utils_1.isTeamOrIndividual)(octokit, statementPiece.substring(1)));
+                        statement.push(yield (0, utils_1.getTeamOrIndividual)(github_1.context, octokit, statementPiece.substring(1)));
                     }
                     else if (statementPiece === "&&") {
                         statement.push(this.and);
@@ -31995,7 +31990,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getDefaultBranch = exports.isTeamOrIndividual = exports.getPrNumber = exports.getConfigFile = exports.getPRReviews = exports.getChangedFileNames = exports.interpretConfig = void 0;
+exports.getDefaultBranch = exports.getTeamOrIndividual = exports.getPrNumber = exports.getConfigFile = exports.getPRReviews = exports.getChangedFileNames = exports.interpretConfig = void 0;
 const github_1 = __nccwpck_require__(5438);
 const CodeOwner_1 = __nccwpck_require__(7271);
 function interpretConfig(contents = "") {
@@ -32052,15 +32047,15 @@ function getPrNumber(context) {
     throw "action doesn't have any PR associated with it";
 }
 exports.getPrNumber = getPrNumber;
-function isTeamOrIndividual(octokit, slug) {
+function getTeamOrIndividual(context, octokit, slug) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const githubTeamResponse = yield octokit.rest.teams.getByName({
-                org: github_1.context.payload.organization.login,
+                org: context.payload.organization.login,
                 team_slug: slug,
             });
             const membersResponse = yield octokit.rest.teams.listMembersInOrg({
-                org: github_1.context.payload.organization.login,
+                org: context.payload.organization.login,
                 team_slug: slug,
             });
             return new CodeOwner_1.Team(githubTeamResponse.data, membersResponse.data);
@@ -32078,12 +32073,12 @@ function isTeamOrIndividual(octokit, slug) {
                 }
             }
             else {
-                throw `Slug - ${slug} is neither associated with a user or a org's team`;
+                throw error;
             }
         }
     });
 }
-exports.isTeamOrIndividual = isTeamOrIndividual;
+exports.getTeamOrIndividual = getTeamOrIndividual;
 const getDefaultBranch = (context) => { var _a; return (_a = context.payload.repository) === null || _a === void 0 ? void 0 : _a.default_branch; };
 exports.getDefaultBranch = getDefaultBranch;
 
