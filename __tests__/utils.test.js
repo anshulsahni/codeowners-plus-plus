@@ -315,7 +315,7 @@ path/to/something/more @user4 && @user5
         sampleOctokit,
         "sample_team"
       );
-      console.log({ actualResult });
+
       expect(actualResult).toBeInstanceOf(Individual);
       expect(actualResult.userId).toBe("sample_user");
       expect(actualResult.id).toBe(123);
@@ -337,12 +337,18 @@ path/to/something/more @user4 && @user5
       const sampleContext = {
         payload: { organization: { login: "sample_org" } },
       };
-      expect(
-        async () =>
-          await getTeamOrIndividual(sampleContext, sampleOctokit, "sample_team")
-      ).rejects.toThrowError(
-        "\"Slug - sample_team is neither associated with a user or a org's team"
-      );
+
+      expect.assertions(1);
+
+      return getTeamOrIndividual(
+        sampleContext,
+        sampleOctokit,
+        "sample_team"
+      ).catch((actualError) => {
+        expect(actualError).toEqual(
+          "Slug - sample_team is neither associated with a user or a org's team"
+        );
+      });
     });
 
     it("should throw exception if team API returns an error something other than with status 404", async () => {
@@ -362,10 +368,13 @@ path/to/something/more @user4 && @user5
       const sampleContext = {
         payload: { organization: { login: "sample_org" } },
       };
-      expect(
-        async () =>
-          await getTeamOrIndividual(sampleContext, sampleOctokit, "sample_team")
-      ).rejects.toThrow();
+      return getTeamOrIndividual(
+        sampleContext,
+        sampleOctokit,
+        "sample_team"
+      ).catch((actualError) => {
+        expect(actualError).toEqual({ status: 502 });
+      });
     });
 
     it("should throw exception if members API returns an error something other than with status 404", async () => {
@@ -394,10 +403,14 @@ path/to/something/more @user4 && @user5
       const sampleContext = {
         payload: { organization: { login: "sample_org" } },
       };
-      expect(
-        async () =>
-          await getTeamOrIndividual(sampleContext, sampleOctokit, "sample_team")
-      ).rejects.toThrow();
+
+      return getTeamOrIndividual(
+        sampleContext,
+        sampleOctokit,
+        "sample_team"
+      ).catch((actualError) => {
+        expect(actualError).toEqual({ status: 500 });
+      });
     });
   });
 });
