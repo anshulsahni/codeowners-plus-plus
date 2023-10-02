@@ -211,10 +211,6 @@ path/to/something/more @user4 && @user5
     });
   });
 
-  describe("getReviews()", () => {});
-
-  describe("getConfigFile()", () => {});
-
   describe("async getTeamOrIndividual()", () => {
     it("should return Team class when github returns team and >0 members", async () => {
       const sampleOctokit = {
@@ -309,6 +305,34 @@ path/to/something/more @user4 && @user5
       };
       const sampleContext = {
         payload: { organization: { login: "sample_org" } },
+      };
+      const actualResult = await getTeamOrIndividual(
+        sampleContext,
+        sampleOctokit,
+        "sample_team"
+      );
+
+      expect(actualResult).toBeInstanceOf(Individual);
+      expect(actualResult.userId).toBe("sample_user");
+      expect(actualResult.id).toBe(123);
+    });
+
+    it("should return Individual when organization is not present in the context and user is valid", async () => {
+      const sampleOctokit = {
+        rest: {
+          teams: { getByName: jest.fn() },
+          users: {
+            getByUsername: jest.fn(() =>
+              Promise.resolve({
+                status: 200,
+                data: { login: "sample_user", id: 123 },
+              })
+            ),
+          },
+        },
+      };
+      const sampleContext = {
+        payload: {},
       };
       const actualResult = await getTeamOrIndividual(
         sampleContext,
