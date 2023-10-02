@@ -32050,15 +32050,20 @@ exports.getPrNumber = getPrNumber;
 function getTeamOrIndividual(context, octokit, slug) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const githubTeamResponse = yield octokit.rest.teams.getByName({
-                org: context.payload.organization.login,
-                team_slug: slug,
-            });
-            const membersResponse = yield octokit.rest.teams.listMembersInOrg({
-                org: context.payload.organization.login,
-                team_slug: slug,
-            });
-            return new CodeOwner_1.Team(githubTeamResponse.data, membersResponse.data);
+            if (context.payload.organization) {
+                const githubTeamResponse = yield octokit.rest.teams.getByName({
+                    org: context.payload.organization.login,
+                    team_slug: slug,
+                });
+                const membersResponse = yield octokit.rest.teams.listMembersInOrg({
+                    org: context.payload.organization.login,
+                    team_slug: slug,
+                });
+                return new CodeOwner_1.Team(githubTeamResponse.data, membersResponse.data);
+            }
+            else {
+                throw { status: 404 };
+            }
         }
         catch (error) {
             if (error.status === 404) {

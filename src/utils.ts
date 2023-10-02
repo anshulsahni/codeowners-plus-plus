@@ -81,19 +81,23 @@ export async function getTeamOrIndividual(
   slug: string
 ): Promise<Team | Individual> {
   try {
-    const githubTeamResponse = await octokit.rest.teams.getByName({
-      org: context.payload.organization.login,
-      team_slug: slug,
-    });
+    if (context.payload.organization) {
+      const githubTeamResponse = await octokit.rest.teams.getByName({
+        org: context.payload.organization.login,
+        team_slug: slug,
+      });
 
-    const membersResponse = await octokit.rest.teams.listMembersInOrg({
-      org: context.payload.organization.login,
-      team_slug: slug,
-    });
-    return new Team(
-      githubTeamResponse.data as GithubTeam,
-      membersResponse.data as Array<GithubIndividual>
-    );
+      const membersResponse = await octokit.rest.teams.listMembersInOrg({
+        org: context.payload.organization.login,
+        team_slug: slug,
+      });
+      return new Team(
+        githubTeamResponse.data as GithubTeam,
+        membersResponse.data as Array<GithubIndividual>
+      );
+    } else {
+      throw { status: 404 };
+    }
   } catch (error: any) {
     if (error.status === 404) {
       try {
