@@ -1,6 +1,6 @@
 {
   "pull_request": {
-    "number": 1,
+    "number": 6,
     "head": {
       "ref": "sample-head-ref"
     },
@@ -9,6 +9,15 @@
     }
   },
   "repository": {
-    "default_branch": "main"
+    "default_branch": "main",
+    "owner": "TryReact",
+    "repo": "family-tree"
+  },
+  "repo": {
+    "owner": "TryReact",
+    "repo": "family-tree"
+  },
+  "organization": {
+    "login": "razorpay"
   }
 }

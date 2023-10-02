@@ -1,29 +1,45 @@
-import CodeOwner from "./CodeOwner";
+import { context } from "@actions/github";
+import { getTeamOrIndividual, Octokit } from "../utils";
+import { CodeOwner } from "./CodeOwner";
 
-export type Statement = Array<
-  CodeOwner | ((result: boolean, codeOwner: CodeOwner) => boolean)
->;
+type Operator = (result: boolean, codeOwner: CodeOwner) => boolean;
+export type Statement = Array<CodeOwner | Operator>;
 
 export default class CodeOwnerRuleStatement {
-  statement: Statement;
+  statementString: string;
   approvers: Array<string>;
-  constructor(statementString: string, approvers: Array<string>) {
+  octokit: Octokit;
+  statement: null | Statement;
+  constructor(
+    statementString: string,
+    approvers: Array<string>,
+    octokit: Octokit
+  ) {
     this.approvers = approvers;
-    this.statement = this.statementStringToObj(statementString);
+    this.statementString = statementString;
+    this.octokit = octokit;
+    this.statement = null;
   }
 
-  evaluate(): boolean {
-    let result: boolean = false;
-
-    for (let i = 0; i < this.statement.length; i++) {
-      const statementPiece = this.statement[i];
-      if (statementPiece instanceof CodeOwner) {
-        result = this.isCodeOwnerApprover(statementPiece);
+  async evaluate(): Promise<boolean> {
+    const statement: Statement = await this.statementStringToObj(
+      this.statementString,
+      this.octokit
+    );
+    let result = true;
+    for (let i = 0; i < statement.length; i++) {
+      const statementPiece = statement[i];
+      if (
+        typeof (statementPiece as CodeOwner).isCodeOwnerApprover === "function"
+      ) {
+        result = (statementPiece as CodeOwner).isCodeOwnerApprover(
+          this.approvers
+        );
       } else {
-        result = statementPiece.call(
+        result = (statementPiece as Operator).call(
           this,
           result,
-          this.statement[++i] as CodeOwner
+          statement[++i] as CodeOwner
         );
       }
     }
@@ -31,23 +47,28 @@ export default class CodeOwnerRuleStatement {
     return result;
   }
 
-  isCodeOwnerApprover(codeOwner: CodeOwner): boolean {
-    return this.approvers.includes(codeOwner.userId);
-  }
-
   private and(result: boolean, codeOwner: CodeOwner): boolean {
-    return result && this.isCodeOwnerApprover(codeOwner);
+    return result && codeOwner.isCodeOwnerApprover(this.approvers);
   }
 
   private or(result: boolean, codeOwner: CodeOwner): boolean {
-    return result || this.isCodeOwnerApprover(codeOwner);
+    return result || codeOwner.isCodeOwnerApprover(this.approvers);
   }
 
-  private statementStringToObj(statementString: string): Statement {
+  private async statementStringToObj(
+    statementString: string,
+    octokit: Octokit
+  ): Promise<Statement> {
     const statement: Statement = [];
-    statementString.split(" ").forEach((statementPiece) => {
+    for await (const statementPiece of statementString.split(" ")) {
       if (statementPiece.startsWith("@")) {
-        statement.push(new CodeOwner(statementPiece.substring(1)));
+        statement.push(
+          await getTeamOrIndividual(
+            context,
+            octokit,
+            statementPiece.substring(1)
+          )
+        );
       } else if (statementPiece === "&&") {
         statement.push(this.and);
       } else if (statementPiece === "||") {
@@ -57,7 +78,7 @@ export default class CodeOwnerRuleStatement {
           `Invalid symbol ${statementPiece} in owner rule statement`
         );
       }
-    });
+    }
 
     return statement;
   }
