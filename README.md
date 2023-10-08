@@ -82,3 +82,7 @@ docs/** @writers
 Pull request changing anything in docs/ directory will require an approval from someone part of the team named writers in the same org where repository belongs
 
 **NOTE:** _Original github CODEOWNERS considers OR rule when more than one user is tagged as codeowner for a path. Currently, codeowners-plus-plus doesn't support that. So there should be an operator between two users or team_
+
+# License
+
+[MIT License](https://choosealicense.com/licenses/mit/)
