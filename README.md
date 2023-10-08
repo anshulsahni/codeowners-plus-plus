@@ -6,19 +6,16 @@ Tool to extend the functionality of GitHub's CODEOWNERS file with mandatory code
 ## How to use?
 
 1. Add `codeowners-plus-plus` file into repositories root, containing rules for code ownership. The syntax of the config is similar to github CODEOWNERS.
-
-Sample codeowners-plus-plus config file
-
+<br><br>Sample codeowners-plus-plus config file
 ```
 * @someone1
 /some/path/** @someone1 && @someone2
 /some/path/something.text @someone3
-
 ```
 
 2. Add a github action workflow on [pull request event](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request) in your repository.
+<br><br>Sample workflow
 
-Sample workflow
 ```yaml
 name: Codeowners Plus Plus
 on: pull_request
@@ -40,6 +37,7 @@ jobs:
 ```
 
 3. Make the above workflow as mandatory status check for merging a pull request. This can be done in by creating a Branch Protection Rule for your base branch and adding `Codeowners Plus Plus` workflow in [Require Status Checks before Merging](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/managing-a-branch-protection-rule)
+
 
 And you are set. From now every pull request can only be merged if it has all the mandatory approvals required as per the rules in `codeowners-plus-plus`
 
