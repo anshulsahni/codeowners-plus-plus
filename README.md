@@ -3,7 +3,7 @@ Tool to extend the functionality of GitHub's CODEOWNERS file with mandatory code
 
 **NOTE:** _This github action is currently under development, hence use with caution_
 
-## How it works?
+## How to use?
 
 1. Add `codeowners-plus-plus` file into repositories root, containing rules for code ownership. The syntax of the config is similar to github CODEOWNERS.
 
@@ -81,4 +81,4 @@ docs/** @writers
 
 Pull request changing anything in docs/ directory will require an approval from someone part of the team named writers in the same org where repository belongs
 
-**NOTE:** _Original github CODEOWNERS considers OR rule when more than one user is tagged as codeowner for path. Currently, codeowners-plus-plus doesn't support that. So there should be an opperator between two users or team_
+**NOTE:** _Original github CODEOWNERS considers OR rule when more than one user is tagged as codeowner for a path. Currently, codeowners-plus-plus doesn't support that. So there should be an operator between two users or team_
