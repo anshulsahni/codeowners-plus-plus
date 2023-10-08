@@ -1,6 +1,3 @@
-const { config } = require("process");
-const { default: CodeOwner } = require("../../src/lib/CodeOwner");
-
 const CodeOwnerRuleStatement =
   require("../../src/lib/CodeOwnerRuleStatement").default;
 const CodeOwnersConfig = require("../../src/lib/CodeOwnersConfig").default;
@@ -80,6 +77,23 @@ describe("CodeOwnersConfig", () => {
         );
         expect(coc.config).toHaveProperty(["*"]);
         expect(coc.config["*"]).toBeInstanceOf(CodeOwnerRuleStatement);
+      });
+
+      it("when there are overriding rules", () => {
+        const coc = new CodeOwnersConfig(
+          {
+            "/some/directory/**": "@someone1",
+            "/some/directory/something.txt": "@someone2",
+          },
+          [],
+          ["/some/directory/something.txt"]
+        );
+
+        expect(coc.config).toHaveProperty(["/some/directory/something.txt"]);
+        expect(coc.config).not.toHaveProperty(["/some/directory/**"]);
+        expect(coc.config["/some/directory/something.txt"]).toBeInstanceOf(
+          CodeOwnerRuleStatement
+        );
       });
     });
   });
